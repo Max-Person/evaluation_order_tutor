@@ -11,7 +11,7 @@
     <description>Minimal SWRLAPI-based project</description>
 
     <properties>
-        <java.version>1.9</java.version>
+        <java.version>17</java.version>
         <junit.version>5.6.2</junit.version>
 
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -84,13 +84,14 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-graphics</artifactId>
-            <version>14</version>
+            <version>17</version>
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>14</version>
+            <version>17</version>
         </dependency>
+
         <dependency>
             <groupId>org.danilopianini</groupId>
             <artifactId>gson-extras</artifactId>
@@ -104,7 +105,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.20</version>
+            <version>1.18.30</version>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
@@ -158,6 +159,12 @@
                         <version>${junit.version}</version>
                     </dependency>
                 </dependencies>
+                <configuration>
+                    <argLine>
+                        --module-path "C:\Users\Mi\.jdks\javafx-sdk-22.0.1\lib"
+                        --add-modules javafx.controls,javafx.fxml
+                    </argLine>
+                </configuration>
             </plugin>
 
             <plugin>

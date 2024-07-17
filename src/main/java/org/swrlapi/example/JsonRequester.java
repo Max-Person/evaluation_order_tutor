@@ -8,6 +8,9 @@ import org.vstu.compprehension.models.entities.AnswerObjectEntity;
 import org.vstu.compprehension.models.entities.BackendFactEntity;
 import org.vstu.compprehension.models.entities.ViolationEntity;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,6 +44,16 @@ public class JsonRequester {
     // {"expression":[{"text":"a","check_order":1000,"enabled":false},{"text":".","check_order":1000,"enabled":true},{"text":"b","check_order":1000,"enabled":false},{"text":"(","check_order":1000,"enabled":true},{"text":"c","check_order":1000,"enabled":false},{"text":"+","check_order":1,"enabled":true},{"text":"1","check_order":1000,"enabled":false},{"text":"*","check_order":1000,"enabled":true},{"text":"d","check_order":1000,"enabled":false},{"text":")","check_order":1000,"enabled":false}],"answers":[{"text":"precedence of operator c at pos 5","status":"correct","additional_info":"select_highest_precedence_left_operator","enabled":true},{"text":"associativity of operator c at pos 5","status":"wrong","additional_info":"select_precedence_or_associativity_left_influence","enabled":true},{"text":"precedence of operator 1 at pos 7","status":"correct","additional_info":"select_highest_precedence_right_operator","enabled":true},{"text":"associativity of operator 1 at pos 7","status":"wrong","additional_info":"select_precedence_or_associativity_right_influence","enabled":true}],"errors":[{"parts":[], "type":"select_precedence_or_associativity_right_influence"}],"lang":"en","task_lang":"cpp","action":"get_supplement","type":"supplementary","text":"What prevents evaluation of operator + at pos 6 ?"}
     // {"expression":[{"text":"a","check_order":1000,"enabled":false},{"text":".","check_order":1000,"enabled":true},{"text":"b","check_order":1000,"enabled":false},{"text":"(","check_order":1000,"enabled":true},{"text":"c","check_order":1000,"enabled":false},{"text":"+","check_order":1,"enabled":true},{"text":"1","check_order":1000,"enabled":false},{"text":"*","check_order":1000,"enabled":true},{"text":"d","check_order":1000,"enabled":false},{"text":")","check_order":1000,"enabled":false}],"answers":[{"text":"precedence","status":"correct","additional_info":"select_highest_precedence_right_operator","enabled":true},{"text":"associativity","status":"wrong","additional_info":"error_select_precedence_or_associativity_left","enabled":true}],"errors":[{"parts":[], "type":"select_highest_precedence_right_operator"}],"lang":"en","task_lang":"cpp","action":"get_supplement","type":"supplementary","text":"What influences evaluation order at first?"}
     // {"expression":[{"text":"a"},{"text":"<"},{"text":"b"},{"text":"*"},{"text":"c"},{"text":"*"},{"text":"d"},{"text":"+"},{"text":"e"},{"text":"*"},{"text":"f"}],"errors":[],"lang":"en", "task_lang":"cpp", "action":"next_step"}
+    
+    public static void main(String[] args) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        JsonRequester requester = new JsonRequester();
+        while (true){
+            System.out.print("\nexpecting input JSON: ");
+            String jsonString = reader.readLine();
+            System.out.println(requester.response(jsonString));
+        }
+    }
 
     public String response(String request) {
         Message message;

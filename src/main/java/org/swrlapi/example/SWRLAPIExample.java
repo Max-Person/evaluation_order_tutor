@@ -55,7 +55,7 @@ public class SWRLAPIExample extends Application {
         AtomicReference<Boolean> lastPosIsError = new AtomicReference<>();
 
         prepareButton.setOnAction(e -> {
-            expr.set(new Expression(Arrays.asList(input.getText().split(" "))));
+            expr.set(Expression.ofTokens(Arrays.asList(input.getText().split(" "))));
             lastSetPos.set(1);
             lastPosIsError.set(false);
             root.getChildren().set(BUTTONS_INDEX, new HBox());

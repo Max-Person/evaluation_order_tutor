@@ -4,29 +4,30 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Expression {
-    List<Term> Terms;
-
-    public Expression(List<String> expression) {
-        Terms = new ArrayList<>();
-        for (String part : expression) {
-            Terms.add(new Term(part));
-        }
+    List<Term> terms;
+    
+    public Expression(List<Term> terms){
+        this.terms = terms;
     }
 
     public List<Term> getTerms() {
-        return Terms;
+        return terms;
     }
 
     public List<String> getTokens() {
         List<String> tokens = new ArrayList<>();
-        for (Term t : Terms) {
+        for (Term t : terms) {
             tokens.add(t.Text);
         }
         return tokens;
     }
 
     public int size() {
-        return Terms.size();
+        return terms.size();
+    }
+    
+    public static Expression ofTokens(List<String> expression) {
+        return new Expression(expression.stream().map(Term::new).toList());
     }
 
 }

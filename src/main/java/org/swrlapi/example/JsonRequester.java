@@ -1,18 +1,17 @@
 package org.swrlapi.example;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.vstu.compprehension.models.businesslogic.Question;
 import org.vstu.compprehension.models.businesslogic.domains.Domain;
 import org.vstu.compprehension.models.businesslogic.domains.ProgrammingLanguageExpressionDomain;
 import org.vstu.compprehension.models.entities.AnswerObjectEntity;
-import org.vstu.compprehension.models.entities.BackendFactEntity;
 import org.vstu.compprehension.models.entities.ViolationEntity;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static org.swrlapi.example.OntologyUtil.*;
 
@@ -55,19 +54,46 @@ public class JsonRequester {
         }
     }
 
-    public String response(String request) {
+    public String response(String request){
         Message message;
-
         try {
             message = new Gson().fromJson(
-                    request,
-                    Message.class);
+                request,
+                Message.class
+            );
         } catch (java.lang.Exception xcp) {
             message = new Message();
         }
+        return new GsonBuilder().setPrettyPrinting().create().toJson(getResponse(message));
+    }
+    
+    private Message getResponse(Message message) {
+        prepareMessageDefaults(message);
+        
+        if (message.action.equals("supported_languages")){
+            return getSupportedLanguagesResponse(message);
+        } else if (message.action.equals("supported_task_languages")) {
+            return getSupportedProgrammingLanguagesResponse(message);
+        }
 
-        List<String> expression = new ArrayList<>();
-        int pos = 0;
+        if (message.action.equals("get_supplement")) {
+            return getSupplementaryResponse(message);
+        }
+
+        message.errors = new ArrayList<>();
+        message.type = "main";
+        parse(message);
+
+        if (message.action.equals("find_errors")) {
+            return getFindErrorsResponse(message);
+        } else if (message.action.equals("next_step")) {
+            return getNextStepResponse(message);
+        }
+
+        return null;
+    }
+    
+    private void prepareMessageDefaults(Message message){
         if (message == null) {
             message = new Message();
         }
@@ -86,37 +112,7 @@ public class JsonRequester {
         if (message.type == null) {
             message.type = "main";
         }
-
-        if (message.action.equals("supported_languages")){
-            MessageToken token = new MessageToken();
-            token.text = "en";
-            message.expression.add(token);
-            token = new MessageToken();
-            token.text = "ru";
-            message.expression.add(token);
-            return new Gson().toJson(message);
-        } else if (message.action.equals("supported_task_languages")) {
-            MessageToken token = new MessageToken();
-            token.text = "cpp";
-            message.expression.add(token);
-            token = new MessageToken();
-            token.text = "cs";
-            message.expression.add(token);
-            token = new MessageToken();
-            token.text = "python";
-            message.expression.add(token);
-            return new Gson().toJson(message);
-        }
-
-        String programmingLanguage;
-        if (message.task_lang.equals("cpp")) {
-            programmingLanguage = "C++";
-        } else if (message.task_lang.equals("cs")) {
-            programmingLanguage = "C#";
-        } else {
-            programmingLanguage = "Python";
-        }
-
+        
         for (MessageToken token : message.expression) {
             if (token.status != null && token.status.equals("wrong")) {
                 token.status = null;
@@ -127,151 +123,182 @@ public class JsonRequester {
             if (token.text == null) {
                 token.text = "";
             }
-
-            String part = token.text;
-            expression.add(part);
-            pos = pos + 1;
         }
-
-        int last_check_order = 0;
-        for (MessageToken token : message.expression) {
-            if (token.check_order != 1000) {
-                last_check_order = Math.max(last_check_order, token.check_order);
-            }
+    }
+    
+    private void setMessageTokens(Message message, String... tokens){
+        Arrays.stream(tokens).forEach(tokenStr -> {
+            MessageToken token = new MessageToken();
+            token.text = tokenStr;
+            message.expression.add(token);
+        });
+    }
+    
+    private Message getSupportedLanguagesResponse(Message message){
+        setMessageTokens(message, "en", "ru");
+        return message;
+    }
+    
+    private Message getSupportedProgrammingLanguagesResponse(Message message){
+        setMessageTokens(message, "cpp", "cs", "python");
+        return message;
+    }
+    
+    private String getProgrammingLanguage(Message message){
+        if (message.task_lang.equals("cpp")) {
+            return  "C++";
+        } else if (message.task_lang.equals("cs")) {
+            return  "C#";
+        } else {
+            return  "Python";
         }
-
-        Expression expr = new Expression(expression);
-        pos = 0;
-        for (MessageToken token : message.expression) {
-            expr.getTerms().get(pos).setStudentPos(token.check_order);
-            pos = pos + 1;
-        }
-
-        if (message.action.equals("get_supplement")) {
-            message.type = "supplementary";
-            if (message.errors != null && message.errors.size() > 0) {
-                message.answers = new ArrayList<>();
-                String lawName = message.errors.get(0).type;
-                OntologyHelper helper = new OntologyHelper(expr, programmingLanguage, message.lang, lawName);
-                Question q = helper.getQuestion();
-
-                if (q == null) {
-                    message.type = "no_supplementary";
-                    return new Gson().toJson(message);
-                }
-
-                message.text = q.getQuestionText().getText();
-                for (AnswerObjectEntity answer : q.getAnswerObjects()) {
-                    MessageToken token = new MessageToken();
-                    token.text = answer.getHyperText();
-                    token.enabled = true;
-                    Domain.InterpretSentenceResult res = helper.judgeSupplementaryQuestion(answer);
-
-                    token.status = res.isAnswerCorrect ? "correct" : "wrong";
-                    token.additional_info = res.violations.get(0).getLawName();
-                    message.answers.add(token);
-                }
-                message.errors = new ArrayList<>();
-            }
-            return new Gson().toJson(message);
-        }
-
-        message.errors = new ArrayList<>();
-        message.type = "main";
-
-        OntologyHelper helper = new OntologyHelper(expr, programmingLanguage);
-        Set<Integer> tokenGood = getGoodPositions(helper);
-
-        pos = 0;
-        for (MessageToken token : message.expression) {
-            pos = pos + 1;
-            if (!tokenGood.contains(pos - 1)) {
-                if (message.lang.equals("ru")) {
-                    OntologyUtil.Error result = new OntologyUtil.Error();
-                    result.add(new ErrorPart(
-                            "Токен на позиции " + (pos),
-                            "operator",
-                            pos
-                    )).add(new ErrorPart(
-                            "не распознан, возможно не все части разделены пробелами или оператор не поддержан"
-                    ));
-                    message.expression.get(pos - 1).status = "wrong";
-                    message.errors.add(result);
-                } else {
-                    OntologyUtil.Error result = new OntologyUtil.Error();
-                    result.add(new ErrorPart(
-                            "Token at pos " + (pos),
-                            "operator",
-                            pos
-                    )).add(new ErrorPart(
-                            "is not correct, try to separate all parts with spaces or operator is not supported"
-                    ));
-                    message.expression.get(pos - 1).status = "wrong";
-                    message.errors.add(result);
-                }
-
-            }
-        }
-
-        pos = 0;
+    }
+    
+    private OntologyHelper getOntologyHelper(Message message){
+        return new OntologyHelper(
+            createExpressionFromMessage(message),
+            getProgrammingLanguage(message)
+        );
+    }
+    
+    private void parse(Message message){
+        OntologyHelper helper = getOntologyHelper(message);
+        
+        Set<Integer> validTokenPositions = getGoodPositions(helper);
         Set<Integer> operandsPos = getOperandPositions(helper);
-        for (MessageToken token : message.expression) {
-            token.enabled = !operandsPos.contains(pos);
-            expr.getTerms().get(pos).setStudentPos(token.check_order);
-            pos = pos + 1;
+        
+        for (int index = 0; index < message.expression.size(); index++) {
+            int pos = index + 1;
+            MessageToken token = message.expression.get(index);
+            token.enabled = !operandsPos.contains(index);
+            if (!validTokenPositions.contains(index)) {
+                token.status = "wrong";
+                OntologyUtil.Error result = new OntologyUtil.Error();
+                if (message.lang.equals("ru")) {
+                    result.add(new ErrorPart(
+                        "Токен на позиции " + pos,
+                        "operator",
+                        pos
+                    )).add(new ErrorPart(
+                        "не распознан, возможно не все части разделены пробелами или оператор не поддержан"
+                    ));
+                } else {
+                    result.add(new ErrorPart(
+                        "Token at pos " + pos,
+                        "operator",
+                        pos
+                    )).add(new ErrorPart(
+                        "is not correct, try to separate all parts with spaces or operator is not supported"
+                    ));
+                }
+                message.errors.add(result);
+            }
         }
-
-        if (message.action.equals("find_errors")) {
-            Set<StudentError> errors = GetErrors(helper, false);
-            for (StudentError error : errors) {
-                OntologyUtil.Error text = getErrorDescription(error, helper, message.lang);
-                for (ViolationEntity violation : helper.judgeQuestion().violations) {
-                    if (helper.needSupplementaryQuestion(violation)) {
-                        text.type = violation.getLawName();
-                        break;
-                    }
+    }
+    
+    private Expression createExpressionFromMessage(Message message){
+        return new Expression(
+            message.expression.stream().map(token -> {
+                Term term = new Term(token.text);
+                term.setStudentPos(token.check_order);
+                return term;
+            }).toList()
+        );
+    }
+    
+    private Message getFindErrorsResponse(Message message){
+        OntologyHelper helper = getOntologyHelper(message);
+        Set<StudentError> errors = GetErrors(helper, false);
+        for (StudentError error : errors) {
+            OntologyUtil.Error text = getErrorDescription(error, helper, message.lang);
+            for (ViolationEntity violation : helper.judgeQuestion().violations) {
+                if (helper.needSupplementaryQuestion(violation)) {
+                    text.type = violation.getLawName();
+                    break;
                 }
-
-                message.errors.add(text);
-                message.expression.get(error.getErrorPos() - 1).status = "wrong";
             }
-
-            if (errors.isEmpty()) {
-                for (MessageToken token : message.expression) {
-                    if (token.check_order != 1000 && token.check_order != 0) {
-                        token.enabled = false;
-                        token.status = "correct";
-                    }
-                }
-            }
-
-            return new Gson().toJson(message);
-        } else if (message.action.equals("next_step")) {
-            Domain.CorrectAnswer correctAnswer = new ProgrammingLanguageExpressionDomain().getAnyNextCorrectAnswer(helper.getQuestion(), message.lang);
-            if (correctAnswer == null) {
-                return new Gson().toJson(message);
-            }
-
+            
+            message.errors.add(text);
+            message.expression.get(error.getErrorPos() - 1).status = "wrong";
+        }
+        
+        if (errors.isEmpty()) {
             for (MessageToken token : message.expression) {
                 if (token.check_order != 1000 && token.check_order != 0) {
                     token.enabled = false;
                     token.status = "correct";
                 }
             }
-
-            pos = Integer.parseInt(correctAnswer.answer.getDomainInfo().substring("op__0__".length())) - 1;
-            message.expression.get(pos).enabled = false;
-            message.expression.get(pos).status = "suggested";
-            message.expression.get(pos).check_order = last_check_order + 1;
-
-            OntologyUtil.Error error = new OntologyUtil.Error();
-            OntologyUtil.ErrorPart errorPart = new ErrorPart(correctAnswer.explanation.getText());
-            message.errors.add(error.add(errorPart));
-
-            return new Gson().toJson(message);
-
         }
-
-        return new Gson().toJson(message);
+        
+        return message;
+    }
+    
+    private Message getNextStepResponse(Message message){
+        Domain.CorrectAnswer correctAnswer = new ProgrammingLanguageExpressionDomain()
+            .getAnyNextCorrectAnswer(getOntologyHelper(message).getQuestion(), message.lang);
+        
+        if (correctAnswer == null) {
+            return message;
+        }
+        
+        for (MessageToken token : message.expression) {
+            if (token.check_order != 1000 && token.check_order != 0) {
+                token.enabled = false;
+                token.status = "correct";
+            }
+        }
+        
+        int correctPosition = Integer.parseInt(correctAnswer.answer.getDomainInfo().substring("op__0__".length())) - 1;
+        message.expression.get(correctPosition).enabled = false;
+        message.expression.get(correctPosition).status = "suggested";
+        
+        int last_check_order = 0;
+        for (MessageToken token : message.expression) {
+            if (token.check_order != 1000) {
+                last_check_order = Math.max(last_check_order, token.check_order);
+            }
+        }
+        message.expression.get(correctPosition).check_order = last_check_order + 1;
+        
+        OntologyUtil.Error error = new OntologyUtil.Error();
+        OntologyUtil.ErrorPart errorPart = new ErrorPart(correctAnswer.explanation.getText());
+        message.errors.add(error.add(errorPart));
+        
+        return message;
+    }
+    
+    private Message getSupplementaryResponse(Message message){
+        message.type = "supplementary";
+        if (message.errors != null && !message.errors.isEmpty()) {
+            message.answers = new ArrayList<>();
+            String lawName = message.errors.get(0).type;
+            OntologyHelper helper = new OntologyHelper(
+                createExpressionFromMessage(message),
+                getProgrammingLanguage(message),
+                message.lang,
+                lawName
+            );
+            Question q = helper.getQuestion();
+            
+            if (q == null) {
+                message.type = "no_supplementary";
+                return message;
+            }
+            
+            message.text = q.getQuestionText().getText();
+            for (AnswerObjectEntity answer : q.getAnswerObjects()) {
+                MessageToken token = new MessageToken();
+                token.text = answer.getHyperText();
+                token.enabled = true;
+                Domain.InterpretSentenceResult res = helper.judgeSupplementaryQuestion(answer);
+                
+                token.status = res.isAnswerCorrect ? "correct" : "wrong";
+                token.additional_info = res.violations.get(0).getLawName();
+                message.answers.add(token);
+            }
+            message.errors = new ArrayList<>();
+        }
+        return message;
     }
 }

@@ -11,10 +11,12 @@ import java.util.*;
 
 public class OntologyUtil {
     static public Expression getExpressionFromJson(String jsonExpression) {
-        return new Expression(
+        return Expression.ofTokens(
                 new Gson().fromJson(
                         jsonExpression,
-                        new TypeToken<List<String>>() {}.getType()));
+                        new TypeToken<List<String>>() {}.getType()
+                )
+        );
     }
 
     class Relation {

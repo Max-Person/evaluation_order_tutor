@@ -26,7 +26,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     private static final String DEBUG_DIR = "C:\\Uni\\CompPrehension_mainDir\\ontology_evaluation_order_check\\src\\main\\resources\\decision_trees\\";
     private static final String BASE_TTL_PREF = "http://www.test/test.owl#";
     
-    private static void debugDumpLoqi(Domain model, String filename){
+    public static void debugDumpLoqi(Domain model, String filename){
         try {
             DomainLoqiWriter.saveDomain(
                 model,
@@ -38,12 +38,14 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         }
     }
     
+    public record ParsedDomain(Domain domain, List<Integer> errorPos){}
     
-    public static Domain questionToDomainModel(
+    public static ParsedDomain questionToDomainModel(
         Domain domainModel,
         Model base
     ){
         Domain situationDomain = new Domain();
+        ParsedDomain parseResult = new ParsedDomain(situationDomain, new ArrayList<>());
         
         Property studentPosProperty = base.getProperty(BASE_TTL_PREF + "student_pos_number");
         List<Resource> selected = base.listSubjectsWithProperty(studentPosProperty)
@@ -65,7 +67,11 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             if(baseTokensToTokens.containsKey(baseToken))
                 continue;
             
-            String className = className(baseToken, domainModel);
+            ParsedClassName parsedClassName = className(baseToken, domainModel);
+            String className = parsedClassName.className;
+            if(!parsedClassName.isCorrect){
+                parseResult.errorPos.add(getIndex(baseToken));
+            }
             ObjectDef resElement = newObject(situationDomain, "element_" + baseToken.getLocalName(), className);
             setEnumProperty(resElement,
                 "state",
@@ -74,7 +80,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             );
             ObjectDef resToken = resTokenFromBase(baseToken, resElement);
             
-            Pair<String, String> loc = getLocalizedName(baseToken, baseTokens.indexOf(baseToken)+1, domainModel);
+            Pair<String, String> loc = getLocalizedName(baseToken, className);
             addLocalizedName(resElement, loc);
             addLocalizedName(resToken, loc);
             
@@ -84,7 +90,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             if(complexPairsMap.containsKey(baseToken)){
                 Resource otherBaseToken = complexPairsMap.get(baseToken);
                 ObjectDef otherResToken = resTokenFromBase(otherBaseToken, resElement);
-                Pair<String, String> otherloc = getLocalizedName(otherBaseToken, baseTokens.indexOf(otherBaseToken)+1, domainModel);
+                Pair<String, String> otherloc = getLocalizedName(otherBaseToken, className);
                 addLocalizedName(otherResToken, otherloc);
                 
                 baseTokensToTokens.put(otherBaseToken, otherResToken);
@@ -128,13 +134,14 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         debugDumpLoqi(situationDomain, "out.loqi");
         situationDomain.addMerge(domainModel);
         situationDomain.validateAndThrow();
-        return situationDomain;
+        return parseResult;
     }
     
     private static ObjectDef resTokenFromBase(Resource baseToken, ObjectDef resElement){
         Domain situation = resElement.getDomain();
         ObjectDef token = newObject(situation, "token_" + baseToken.getLocalName(), "token");
         addRelationship(resElement, "has", token.getName());
+        addMeta(token, "index", getIndex(baseToken));
         return token;
     }
     
@@ -178,7 +185,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     }
     
     private static int getIndex(Resource baseToken){
-        return baseToken.getProperty(baseToken.getModel().getProperty(BASE_TTL_PREF + "index")).getInt();
+        return baseToken.getProperty(baseToken.getModel().getProperty(BASE_TTL_PREF + "index")).getInt() - 1;
     }
     
     private static void addLocalizedName(ObjectDef object, Pair<String, String> localization){
@@ -186,8 +193,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         addMeta(object, "EN", "localizedName", localization.getRight());
     }
     
-    private static Pair<String, String> getLocalizedName(Resource baseToken, int index, Domain domainModel){
-        String classname = className(baseToken, domainModel);
+    private static Pair<String, String> getLocalizedName(Resource baseToken, String classname){
         String ru;
         String en;
         if(classname.equals("parenthesis")){
@@ -202,8 +208,9 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             ru = "оператор " + getText(baseToken);
             en = "operator " + getText(baseToken);
         }
-        ru += " на позиции " + index;
-        en += " at position " + index;
+        int pos = getIndex(baseToken) + 1;
+        ru += " на позиции " + pos;
+        en += " at position " + pos;
         return Pair.of(ru, en);
     }
     
@@ -211,7 +218,13 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         return baseToken.getProperty(baseToken.getModel().getProperty(BASE_TTL_PREF + "text")).getString();
     }
     
-    private static String className(Resource baseToken, Domain domainModel){
+    private record ParsedClassName(String className, boolean isCorrect){
+        ParsedClassName(String className){
+            this(className, true);
+        }
+    }
+    
+    private static ParsedClassName className(Resource baseToken, Domain domainModel){
         String text = getText(baseToken);
         Property hasOperandProperty = baseToken.getModel().getProperty(BASE_TTL_PREF + "has_operand");
         int operandCount = baseToken.listProperties(hasOperandProperty).toList().size();
@@ -223,20 +236,24 @@ public class ProgrammingLanguageExpressionDomainBuilder {
                 .anyMatch(metadata -> metadata.getKey().getName().contains("text") && text.equals(metadata.getValue()))
             )
             .toList();
-        if(possibleClasses.isEmpty() && text.matches("[a-zA-Z_$][a-zA-Z0-9_$]*")){
-            return "operand";
+        if(possibleClasses.isEmpty()){
+            return new ParsedClassName("operand", text.matches("[a-zA-Z_$][a-zA-Z0-9_$]*"));
         }
         if(possibleClasses.size() == 1){
-            return possibleClasses.get(0).getName();
+            return new ParsedClassName(possibleClasses.get(0).getName());
         }
-        return possibleClasses.stream()
-            .filter(classDef ->
-                new EnumValueRef("arity", "binary").equals(classDef.getPropertyValue("arity"))
-                    == (operandCount == 2)
-                && new EnumValueRef("place", "prefix").equals(classDef.getPropertyValue("place"))
-                    == isPrefix
-            )
-            .findFirst().orElseThrow().getName();
+        return new ParsedClassName(
+            possibleClasses.stream()
+                .filter(classDef ->
+                    new EnumValueRef("arity", "binary").equals(classDef.getPropertyValue("arity"))
+                        == (operandCount == 2)
+                        && new EnumValueRef("place", "prefix").equals(classDef.getPropertyValue("place"))
+                        == isPrefix
+                )
+                .findFirst()
+                .map(ClassDef::getName)
+                .orElseThrow()
+        );
     }
     
     public static void saveModel(String filename, Model model){

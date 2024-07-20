@@ -13,6 +13,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.swrlapi.example.OntologyUtil.*;
 
@@ -162,17 +164,42 @@ public class JsonRequester {
         );
     }
     
-    private void parse(Message message){
+    private its.model.definition.Domain parse(Message message){
         OntologyHelper helper = getOntologyHelper(message);
         
-        Set<Integer> validTokenPositions = getGoodPositions(helper);
-        Set<Integer> operandsPos = getOperandPositions(helper);
+        Set<Integer> indexes = IntStream.range(0, message.expression.size())
+            .boxed()
+            .collect(Collectors.toCollection(HashSet::new));
+        
+        Set<Integer> invalidTokensIndexes = new HashSet<>(indexes);
+        invalidTokensIndexes.removeAll(getGoodPositions(helper));
+        Set<Integer> enabledIndexes = new HashSet<>(indexes);
+        enabledIndexes.removeAll(getOperandPositions(helper));
+        
+        its.model.definition.Domain situationDomain = null;
+        if(invalidTokensIndexes.isEmpty()){
+            its.model.definition.Domain tagDomain = domainSolvingModel.getTagsData()
+                .get(getProgrammingLanguage(message).toLowerCase())
+                .copy();
+            tagDomain.addMerge(domainSolvingModel.getDomain());
+            
+            ProgrammingLanguageExpressionDomainBuilder.ParsedDomain parsedDomain
+                = ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(tagDomain, helper.getModel());
+            
+            situationDomain = parsedDomain.domain();
+            Set<Integer> operatorIndexes = situationDomain.getObjects().stream()
+                .filter(object -> object.isInstanceOf("operator"))
+                .flatMap(operand -> operand.getRelationshipLinks().listByName("has").get(0).getObjects().stream()) //здесь get(0) оставляет только левый токен, но вообще это неопределенное поведение
+                .map(token -> (Integer) token.getMetadata().get("index"))
+                .collect(Collectors.toSet());
+            enabledIndexes.retainAll(operatorIndexes);
+        }
         
         for (int index = 0; index < message.expression.size(); index++) {
             int pos = index + 1;
             MessageToken token = message.expression.get(index);
-            token.enabled = !operandsPos.contains(index);
-            if (!validTokenPositions.contains(index)) {
+            token.enabled = enabledIndexes.contains(index);
+            if (invalidTokensIndexes.contains(index)) {
                 token.status = "wrong";
                 OntologyUtil.Error result = new OntologyUtil.Error();
                 if (message.lang.equals("ru")) {
@@ -195,6 +222,15 @@ public class JsonRequester {
                 message.errors.add(result);
             }
         }
+        
+        if(situationDomain != null){
+            ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
+            solver.solveTree(situationDomain, domainSolvingModel);
+            solver.solveStrict(situationDomain, domainSolvingModel);
+            ProgrammingLanguageExpressionDomainBuilder.debugDumpLoqi(situationDomain, "out.loqi");
+        }
+        
+        return situationDomain;
     }
     
     private Expression createExpressionFromMessage(Message message){
@@ -216,12 +252,6 @@ public class JsonRequester {
     
     private Message getFindErrorsResponse(Message message){
         OntologyHelper helper = getOntologyHelper(message);
-        its.model.definition.Domain tagDomain = domainSolvingModel.getTagsData()
-            .get(getProgrammingLanguage(message).toLowerCase())
-            .copy();
-        tagDomain.addMerge(domainSolvingModel.getDomain());
-        its.model.definition.Domain situationDomain
-            = ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(tagDomain, helper.getModel());
         Set<StudentError> errors = GetErrors(helper, false);
         for (StudentError error : errors) {
             OntologyUtil.Error text = getErrorDescription(error, helper, message.lang);

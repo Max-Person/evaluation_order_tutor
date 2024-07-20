@@ -221,9 +221,7 @@ public class JsonRequester {
             .copy();
         tagDomain.addMerge(domainSolvingModel.getDomain());
         its.model.definition.Domain situationDomain
-            = ProgrammingLanguageExpressionRDFTransformer.questionToDomainModel(tagDomain, helper.getModel());
-        situationDomain.addMerge(tagDomain);
-        situationDomain.validateAndThrow();
+            = ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(tagDomain, helper.getModel());
         Set<StudentError> errors = GetErrors(helper, false);
         for (StudentError error : errors) {
             OntologyUtil.Error text = getErrorDescription(error, helper, message.lang);

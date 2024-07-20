@@ -11,7 +11,6 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.util.PrintUtil;
 import org.apache.jena.util.iterator.ExtendedIterator;
 import org.apache.jena.vocabulary.VCARD;
-import org.swrlapi.example.ProgrammingLanguageExpressionRDFTransformer;
 import org.vstu.compprehension.models.businesslogic.Law;
 import org.vstu.compprehension.models.businesslogic.LawFormulation;
 import org.vstu.compprehension.models.entities.BackendFactEntity;

@@ -11,6 +11,7 @@ import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.util.PrintUtil;
 import org.apache.jena.util.iterator.ExtendedIterator;
 import org.apache.jena.vocabulary.VCARD;
+import org.swrlapi.example.ProgrammingLanguageExpressionRDFTransformer;
 import org.vstu.compprehension.models.businesslogic.Law;
 import org.vstu.compprehension.models.businesslogic.LawFormulation;
 import org.vstu.compprehension.models.entities.BackendFactEntity;
@@ -46,6 +47,10 @@ public class JenaBackend extends Backend {
         model = ModelFactory.createOntologyModel(OWL_MEM);  // createDefaultModel();
 
         domainRules.clear();
+    }
+    
+    public OntModel getOntology(){
+        return model;
     }
 
 //    static void runReasoning(String in_rdf_url, String rules_path, String out_rdf_path) {

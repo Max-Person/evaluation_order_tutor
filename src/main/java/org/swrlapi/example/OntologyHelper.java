@@ -1,5 +1,7 @@
 package org.swrlapi.example;
 
+import its.model.DomainSolvingModel;
+import org.apache.jena.rdf.model.Model;
 import org.vstu.compprehension.models.businesslogic.Ordering;
 import org.vstu.compprehension.models.businesslogic.Question;
 import org.vstu.compprehension.models.businesslogic.Tag;
@@ -49,6 +51,10 @@ public class OntologyHelper {
             violation.setLawName(lawName);
         }
         question = domain.makeSupplementaryQuestion(question, violation, lang);
+    }
+    
+    public Model getModel(){
+        return backend.getOntology();
     }
 
     private void makeQuestion(Expression expression, String programmingLanguage) {

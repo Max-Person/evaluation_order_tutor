@@ -2,6 +2,7 @@ package org.swrlapi.example;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import its.model.DomainSolvingModel;
 import org.vstu.compprehension.models.businesslogic.Question;
 import org.vstu.compprehension.models.businesslogic.domains.Domain;
 import org.vstu.compprehension.models.businesslogic.domains.ProgrammingLanguageExpressionDomain;
@@ -206,8 +207,23 @@ public class JsonRequester {
         );
     }
     
+    
+    private static final String DOMAIN_MODEL_LOCATION = "decision_trees/";
+    private final DomainSolvingModel domainSolvingModel = new DomainSolvingModel(
+        this.getClass().getClassLoader().getResource(DOMAIN_MODEL_LOCATION),
+        DomainSolvingModel.BuildMethod.LOQI
+    );
+    
     private Message getFindErrorsResponse(Message message){
         OntologyHelper helper = getOntologyHelper(message);
+        its.model.definition.Domain tagDomain = domainSolvingModel.getTagsData()
+            .get(getProgrammingLanguage(message).toLowerCase())
+            .copy();
+        tagDomain.addMerge(domainSolvingModel.getDomain());
+        its.model.definition.Domain situationDomain
+            = ProgrammingLanguageExpressionRDFTransformer.questionToDomainModel(tagDomain, helper.getModel());
+        situationDomain.addMerge(tagDomain);
+        situationDomain.validateAndThrow();
         Set<StudentError> errors = GetErrors(helper, false);
         for (StudentError error : errors) {
             OntologyUtil.Error text = getErrorDescription(error, helper, message.lang);

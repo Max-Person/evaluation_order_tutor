@@ -3,6 +3,9 @@ package org.swrlapi.example;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import its.model.DomainSolvingModel;
+import its.questions.gen.QuestioningSituation;
+import its.reasoner.LearningSituation;
+import its.reasoner.nodes.DecisionTreeReasoner;
 import org.vstu.compprehension.models.businesslogic.Question;
 import org.vstu.compprehension.models.businesslogic.domains.Domain;
 import org.vstu.compprehension.models.businesslogic.domains.ProgrammingLanguageExpressionDomain;
@@ -67,7 +70,12 @@ public class JsonRequester {
         } catch (java.lang.Exception xcp) {
             message = new Message();
         }
-        return new GsonBuilder().setPrettyPrinting().create().toJson(getResponse(message));
+        
+        long startTime = System.nanoTime();
+        Message response = getResponse(message);
+        double estimatedTimeInSeconds = ((double) System.nanoTime() - startTime) / 1_000_000_000;
+        System.out.println("TIME: " + estimatedTimeInSeconds);
+        return new GsonBuilder().setPrettyPrinting().create().toJson(response);
     }
     
     private Message getResponse(Message message) {
@@ -78,22 +86,26 @@ public class JsonRequester {
         } else if (message.action.equals("supported_task_languages")) {
             return getSupportedProgrammingLanguagesResponse(message);
         }
-
-        if (message.action.equals("get_supplement")) {
-            return getSupplementaryResponse(message);
-        }
-
+        
         message.errors = new ArrayList<>();
-        message.type = "main";
-        parse(message);
-
-        if (message.action.equals("find_errors")) {
-            return getFindErrorsResponse(message);
-        } else if (message.action.equals("next_step")) {
-            return getNextStepResponse(message);
+        its.model.definition.Domain situationDomain = parse(message);
+        
+        if(!message.errors.isEmpty() || situationDomain == null){
+            return message;
         }
-
-        return null;
+        
+        LearningSituation situation = new LearningSituation(
+            situationDomain,
+            LearningSituation.collectDecisionTreeVariables(situationDomain)
+        );
+        
+        return switch (message.action) {
+            case "find_errors" -> getFindErrorsResponse(message, situation);
+            case "next_step" -> getNextStepResponse(message);
+            case "get_supplement" -> getSupplementaryResponse(message);
+            default -> message; //Не должно произойти
+        };
+        
     }
     
     private void prepareMessageDefaults(Message message){
@@ -247,35 +259,74 @@ public class JsonRequester {
         DomainSolvingModel.BuildMethod.LOQI
     );
     
-    private Message getFindErrorsResponse(Message message){
-        OntologyHelper helper = getOntologyHelper(message);
-        Set<StudentError> errors = GetErrors(helper, false);
-        for (StudentError error : errors) {
-            OntologyUtil.Error text = getErrorDescription(error, helper, message.lang);
-            for (ViolationEntity violation : helper.judgeQuestion().violations) {
-                if (helper.needSupplementaryQuestion(violation)) {
-                    text.type = violation.getLawName();
-                    break;
-                }
-            }
-            
-            message.errors.add(text);
-            message.expression.get(error.getErrorPos() - 1).status = "wrong";
+    
+    private final static String ERROR_NODE_ATTR = "error";
+    private Message getFindErrorsResponse(Message message, LearningSituation situation){
+        if(situation.getDecisionTreeVariables().isEmpty()){
+            return message;
         }
         
-        if (errors.isEmpty()) {
+        List<DecisionTreeReasoner.DecisionTreeEvaluationResult> results = DecisionTreeReasoner.solve(
+            domainSolvingModel.getDecisionTree(),
+            situation
+        );
+        
+        List<DecisionTreeReasoner.DecisionTreeEvaluationResult> errResults =
+            results.stream()
+                .filter(result ->
+                    !result.getNode().getValue()
+                        && result.getNode().getMetadata().get(ERROR_NODE_ATTR) != null
+                )
+                .toList();
+        
+        errResults.stream()
+            .map(error -> makeExplanation(error, situation, message.lang))
+            .forEach(message.errors::add);
+        
+        
+        if (errResults.isEmpty()) {
             for (MessageToken token : message.expression) {
                 if (token.check_order != 1000 && token.check_order != 0) {
                     token.enabled = false;
                     token.status = "correct";
                 }
             }
+        } else {
+            int errIndex = Integer.parseInt(situation.getDomain().getVariables().get("X1")
+                .getValueObject()
+                .getMetadata().get("index").toString());
+            message.expression.get(errIndex).status = "wrong";
         }
         
         return message;
     }
     
+    private OntologyUtil.Error makeExplanation(
+        DecisionTreeReasoner.DecisionTreeEvaluationResult error,
+        LearningSituation situation,
+        String languageLocaleString
+    ){
+        QuestioningSituation textSituation = new QuestioningSituation(
+            situation.getDomain(),
+            languageLocaleString.toUpperCase()
+        );
+        
+        textSituation.getDecisionTreeVariables().clear();
+        textSituation.getDecisionTreeVariables().putAll(error.getVariablesSnapshot());
+        String explanationTemplate = Optional.ofNullable(error.getNode().getMetadata().get("explanation"))
+            .map(Object::toString)
+            .orElse("WRONG");
+        String explanationText = textSituation.getTemplating().interpret(explanationTemplate);
+        
+        OntologyUtil.Error explanation = new OntologyUtil.Error();
+        explanation.add(new ErrorPart(explanationText));
+        explanation.type = error.getNode().getMetadata().get(ERROR_NODE_ATTR).toString();
+        return explanation;
+    }
+    
     private Message getNextStepResponse(Message message){
+        message.type = "main";
+        
         Domain.CorrectAnswer correctAnswer = new ProgrammingLanguageExpressionDomain()
             .getAnyNextCorrectAnswer(getOntologyHelper(message).getQuestion(), message.lang);
         

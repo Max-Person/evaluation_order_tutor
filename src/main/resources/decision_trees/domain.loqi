@@ -149,6 +149,12 @@ class operator : operand {
 	class prop needsInnerOperand: bool ;
 	class prop hasStrictOperandOrder: bool = false; //можно убрать т.к. есть StrictOrderOperator
 
+	class prop isNot: bool = false;
+	class prop isAnd: bool = false;
+	class prop isOr: bool = false;
+	class prop isComma: bool = false;
+	class prop isTConditional: bool = false;
+
 	// rel isOperatorTo(operand) ;
 	rel hasLeftOperand(operand) : opposite to operand->isLeftOperandOf; //b4
 	rel hasCenterOperand(operand) : opposite to operand->isCenterOperandOf;

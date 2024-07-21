@@ -53,6 +53,9 @@ class ProgrammingLanguageExpressionsSolver {
             obj.relationshipLinks.addAll(
                 objFromSituation.relationshipLinks.filter { it.relationshipName.contains("OperandOf") }
             )
+            objFromSituation.definedPropertyValues.get("evaluatesTo")?.also {
+                obj.definedPropertyValues.addOrReplace(it)
+            }
         }
     }
 

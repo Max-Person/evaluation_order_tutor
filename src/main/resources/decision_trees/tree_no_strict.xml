@@ -2137,6 +2137,146 @@
                                 <Property name="state" />
                                 <Enum owner="state" value="evaluated"/>
                             </AssignToProperty>
+
+                            <!-- НИЖЕ - ВЫЧИСЛЕНИЕ ЛОГ. ОПЕРАТОРОВ -->
+                            <IfThen>
+                                <GetPropertyValue>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="isNot" />
+                                </GetPropertyValue>
+                                <AssignToProperty>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="evaluatesTo" />
+                                    <LogicalNot>
+                                        <GetPropertyValue>
+                                            <GetByRelationship varName="b">
+                                                <DecisionTreeVar name="X" />
+                                                <Relationship name="hasRightOperand" />
+                                            </GetByRelationship>
+                                            <Property name="evaluatesTo" />
+                                        </GetPropertyValue>
+                                    </LogicalNot>
+                                </AssignToProperty>
+                            </IfThen>
+
+                            <IfThen>
+                                <GetPropertyValue>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="isAnd" />
+                                </GetPropertyValue>
+                                <AssignToProperty>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="evaluatesTo" />
+                                    <LogicalAnd>
+                                        <GetPropertyValue>
+                                            <GetByRelationship varName="a">
+                                                <DecisionTreeVar name="X" />
+                                                <Relationship name="hasLeftOperand" />
+                                            </GetByRelationship>
+                                            <Property name="evaluatesTo" />
+                                        </GetPropertyValue>
+                                        <GetPropertyValue>
+                                            <GetByRelationship varName="b">
+                                                <DecisionTreeVar name="X" />
+                                                <Relationship name="hasRightOperand" />
+                                            </GetByRelationship>
+                                            <Property name="evaluatesTo" />
+                                        </GetPropertyValue>
+                                    </LogicalAnd>
+                                </AssignToProperty>
+                            </IfThen>
+
+                            <IfThen>
+                                <GetPropertyValue>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="isOr" />
+                                </GetPropertyValue>
+                                <AssignToProperty>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="evaluatesTo" />
+                                    <LogicalOr>
+                                        <GetPropertyValue>
+                                            <GetByRelationship varName="a">
+                                                <DecisionTreeVar name="X" />
+                                                <Relationship name="hasLeftOperand" />
+                                            </GetByRelationship>
+                                            <Property name="evaluatesTo" />
+                                        </GetPropertyValue>
+                                        <GetPropertyValue>
+                                            <GetByRelationship varName="b">
+                                                <DecisionTreeVar name="X" />
+                                                <Relationship name="hasRightOperand" />
+                                            </GetByRelationship>
+                                            <Property name="evaluatesTo" />
+                                        </GetPropertyValue>
+                                    </LogicalOr>
+                                </AssignToProperty>
+                            </IfThen>
+
+                            <IfThen>
+                                <GetPropertyValue>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="isComma" />
+                                </GetPropertyValue>
+                                <AssignToProperty>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="evaluatesTo" />
+                                    <GetPropertyValue>
+                                        <GetByRelationship varName="b">
+                                            <DecisionTreeVar name="X" />
+                                            <Relationship name="hasRightOperand" />
+                                        </GetByRelationship>
+                                        <Property name="evaluatesTo" />
+                                    </GetPropertyValue>
+                                </AssignToProperty>
+                            </IfThen>
+
+                            <IfThen>
+                                <GetPropertyValue>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="isTConditional" />
+                                </GetPropertyValue>
+                                <AssignToProperty>
+                                    <DecisionTreeVar name="X" />
+                                    <Property name="evaluatesTo" />
+                                    <LogicalOr>
+                                        <LogicalAnd>
+                                            <GetPropertyValue>
+                                                <GetByRelationship varName="a">
+                                                    <DecisionTreeVar name="X" />
+                                                    <Relationship name="hasLeftOperand" />
+                                                </GetByRelationship>
+                                                <Property name="evaluatesTo" />
+                                            </GetPropertyValue>
+                                            <GetPropertyValue>
+                                                <GetByRelationship varName="c">
+                                                    <DecisionTreeVar name="X" />
+                                                    <Relationship name="hasCenterOperand" />
+                                                </GetByRelationship>
+                                                <Property name="evaluatesTo" />
+                                            </GetPropertyValue>
+                                        </LogicalAnd>
+                                        <LogicalAnd>
+                                            <LogicalNot>
+                                                <GetPropertyValue>
+                                                    <GetByRelationship varName="a">
+                                                        <DecisionTreeVar name="X" />
+                                                        <Relationship name="hasLeftOperand" />
+                                                    </GetByRelationship>
+                                                    <Property name="evaluatesTo" />
+                                                </GetPropertyValue>
+                                            </LogicalNot>
+                                            <GetPropertyValue>
+                                                <GetByRelationship varName="b">
+                                                    <DecisionTreeVar name="X" />
+                                                    <Relationship name="hasRightOperand" />
+                                                </GetByRelationship>
+                                                <Property name="evaluatesTo" />
+                                            </GetPropertyValue>
+                                        </LogicalAnd>
+                                    </LogicalOr>
+                                </AssignToProperty>
+                            </IfThen>
                         </Block>
                     </Expression>
                 </BranchResultNode> <!-- A, B, C становятся операндами и т.д.-->

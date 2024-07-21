@@ -321,7 +321,7 @@ class `operator_^` : operator {
 	EN.localizedName = "operator ^" ;
 ]
 
-class operator_and : operator {
+class operator_and : StrictOrderOperator {
 
 	arity = arity:binary ;
 	place = place:infix ;
@@ -331,6 +331,10 @@ class operator_and : operator {
 	needsRightOperand = true ;
 	needsInnerOperand = false ;
 	countOfTokens = 1 ;
+
+	isAnd = true;
+	requiredLeftValForRight = ExpectedValue:`true` ;
+	requiredLeftValForCenter = ExpectedValue:any ;
 } [
 	text = "and" ;
 	RU.localizedName = "оператор and" ;
@@ -353,7 +357,7 @@ class operator_await : operator {
 	EN.localizedName = "operator await" ;
 ]
 
-// class operator_if : operator {
+// class operator_if : StrictOrderOperator {
 
 // 	arity = arity:ternary ;
 // 	place = place:infix ;
@@ -419,7 +423,7 @@ class operator_lambda : operator {
 	isComplex = true ;
 ]
 
-class operator_or : operator {
+class operator_or : StrictOrderOperator {
 
 	arity = arity:binary ;
 	place = place:infix ;
@@ -429,6 +433,10 @@ class operator_or : operator {
 	needsRightOperand = true ;
 	needsInnerOperand = false ;
 	countOfTokens = 1 ;
+
+	isOr = true;
+	requiredLeftValForRight = ExpectedValue:`false` ;
+	requiredLeftValForCenter = ExpectedValue:any ;
 } [
 	text = "or" ;
 	RU.localizedName = "оператор or" ;

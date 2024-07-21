@@ -11,6 +11,8 @@ class `operator_&&` : StrictOrderOperator {
 	needsRightOperand = true ;
 	needsInnerOperand = false ;
 	countOfTokens = 1 ;
+
+	isAnd = true;
 	requiredLeftValForRight = ExpectedValue:`true` ;
 	requiredLeftValForCenter = ExpectedValue:any ;
 } [
@@ -29,6 +31,8 @@ class `operator_,` : StrictOrderOperator {
 	needsRightOperand = true ;
 	needsInnerOperand = false ;
 	countOfTokens = 1 ;
+
+	isComma = true;
 	requiredLeftValForRight = ExpectedValue:any ;
 	requiredLeftValForCenter = ExpectedValue:any ;
 } [
@@ -47,6 +51,8 @@ class `operator_?` : StrictOrderOperator {
 	needsRightOperand = true ;
 	needsInnerOperand = true ;
 	countOfTokens = 2 ;
+
+	isTConditional = true;
 	requiredLeftValForRight = ExpectedValue:`true` ;
 	requiredLeftValForCenter = ExpectedValue:`false` ;
 } [
@@ -66,6 +72,8 @@ class `operator_||` : StrictOrderOperator {
 	needsRightOperand = true ;
 	needsInnerOperand = false ;
 	countOfTokens = 1 ;
+
+	isOr = true;
 	requiredLeftValForRight = ExpectedValue:`false` ;
 	requiredLeftValForCenter = ExpectedValue:any ;
 } [
@@ -84,6 +92,8 @@ class `operator_!` : operator {
 	needsRightOperand = true ;
 	needsInnerOperand = false ;
 	countOfTokens = 1 ;
+
+	isNot = true;
 } [
 	text = "!" ;
 	RU.localizedName = "оператор !" ;

@@ -29,8 +29,8 @@ class ProgrammingLanguageExpressionsSolver {
 
         var unevaluated = getUnevaluated(situationDomain)
         while (unevaluated.isNotEmpty()) {
-            situation.decisionTreeVariables.clear()
             for (x in unevaluated) {
+                situation.decisionTreeVariables.clear()
                 situation.decisionTreeVariables["X"] = x.reference
                 println("solve iter for $x")
                 decisionTree.solve(situation)

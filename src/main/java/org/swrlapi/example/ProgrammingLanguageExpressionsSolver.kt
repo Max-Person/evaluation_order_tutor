@@ -24,7 +24,7 @@ class ProgrammingLanguageExpressionsSolver {
             return domain.objects.filter {
                 it.isInstanceOf("operator")
                         && it.getPropertyValue("state") == EnumValue("state", "unevaluated")
-            }
+            }.sortedBy { it.getPropertyValue("precedence").toString().toInt()}
         }
 
         var unevaluated = getUnevaluated(situationDomain)

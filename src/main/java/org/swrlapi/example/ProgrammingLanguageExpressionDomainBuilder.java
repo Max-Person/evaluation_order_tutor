@@ -7,6 +7,7 @@ import its.model.definition.ObjectDef;
 import its.model.definition.loqi.DomainLoqiWriter;
 import its.model.definition.rdf.DomainRDFFiller;
 import its.model.definition.rdf.RDFUtils;
+import its.model.nodes.DecisionTree;
 import lombok.val;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.jena.rdf.model.Model;
@@ -42,6 +43,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     
     public static ParsedDomain questionToDomainModel(
         Domain domainModel,
+        Map<String, DecisionTree> decisionTreeMap,
         Model base
     ){
         Domain situationDomain = new Domain();
@@ -105,17 +107,27 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             addRelationship(previousResToken, "directlyLeftOf", resToken.getName());
         }
         
+        situationDomain.addMerge(domainModel);
+        situationDomain.validateAndThrow();
+        
+        ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
+        solver.solveTree(situationDomain, decisionTreeMap);
+        solver.solveStrict(situationDomain, decisionTreeMap);
+        
         if(!selected.isEmpty()) {
             for (Resource baseToken : selected.subList(0, selected.size() - 1)) {
+                ObjectDef operator = baseTokensToElements.get(baseToken);
                 setEnumProperty(
-                    baseTokensToElements.get(baseToken),
+                    operator,
                     "state",
                     "state", "evaluated"
                 );
-                baseToken.listProperties(base.getProperty(BASE_TTL_PREF + "has_operand")).toList().stream()
-                    .map(s -> s.getObject().asResource())
-                    .filter(resource -> !resource.equals(complexPairsMap.get(baseToken)))
-                    .map(baseTokensToElements::get)
+                situationDomain.getObjects().stream()
+                    .filter(object -> object.isInstanceOf("operand") &&
+                        !object.getRelationshipLinks().listByName("isOperandOf").isEmpty() &&
+                        object.getRelationshipLinks().listByName("isOperandOf").stream()
+                            .allMatch(link -> link.getObjects().get(0) == operator)
+                    )
                     .forEach(operand -> {
                         setEnumProperty(
                             operand,
@@ -131,9 +143,8 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             }
         }
         
-        debugDumpLoqi(situationDomain, "out.loqi");
-        situationDomain.addMerge(domainModel);
         situationDomain.validateAndThrow();
+        debugDumpLoqi(situationDomain, "out.loqi");
         return parseResult;
     }
     
@@ -226,10 +237,6 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     
     private static ParsedClassName className(Resource baseToken, Domain domainModel){
         String text = getText(baseToken);
-        Property hasOperandProperty = baseToken.getModel().getProperty(BASE_TTL_PREF + "has_operand");
-        int operandCount = baseToken.listProperties(hasOperandProperty).toList().size();
-        boolean isPrefix = operandCount == 1
-            && getIndex(baseToken) < getIndex(baseToken.getProperty(hasOperandProperty).getResource());
         
         List<ClassDef> possibleClasses = domainModel.getClasses().stream()
             .filter(classDef -> classDef.getMetadata().entrySet().stream()
@@ -242,14 +249,12 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         if(possibleClasses.size() == 1){
             return new ParsedClassName(possibleClasses.get(0).getName());
         }
+        
+        Property precedenceProperty = baseToken.getModel().getProperty(BASE_TTL_PREF + "precedence");
+        int tokenPrecedence = baseToken.getProperty(precedenceProperty).getInt();
         return new ParsedClassName(
             possibleClasses.stream()
-                .filter(classDef ->
-                    new EnumValueRef("arity", "binary").equals(classDef.getPropertyValue("arity"))
-                        == (operandCount == 2)
-                        && new EnumValueRef("place", "prefix").equals(classDef.getPropertyValue("place"))
-                        == isPrefix
-                )
+                .filter(classDef -> Integer.valueOf(tokenPrecedence).equals(classDef.getPropertyValue("precedence")))
                 .findFirst()
                 .map(ClassDef::getName)
                 .orElseThrow()

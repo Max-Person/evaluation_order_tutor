@@ -183,8 +183,12 @@ public class JsonRequester {
                 .copy();
             tagDomain.addMerge(domainSolvingModel.getDomain());
             
-            ProgrammingLanguageExpressionDomainBuilder.ParsedDomain parsedDomain
-                = ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(tagDomain, helper.getModel());
+            ProgrammingLanguageExpressionDomainBuilder.ParsedDomain parsedDomain =
+                ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(
+                    tagDomain,
+                    domainSolvingModel.getDecisionTrees(),
+                    helper.getModel()
+                );
             
             situationDomain = parsedDomain.domain();
             Set<Integer> operatorIndexes = situationDomain.getObjects().stream()
@@ -221,13 +225,6 @@ public class JsonRequester {
                 }
                 message.errors.add(result);
             }
-        }
-        
-        if(situationDomain != null){
-            ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
-            solver.solveTree(situationDomain, domainSolvingModel);
-            solver.solveStrict(situationDomain, domainSolvingModel);
-            ProgrammingLanguageExpressionDomainBuilder.debugDumpLoqi(situationDomain, "out.loqi");
         }
         
         return situationDomain;

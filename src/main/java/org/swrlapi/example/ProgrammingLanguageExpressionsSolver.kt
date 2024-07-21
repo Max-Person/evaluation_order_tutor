@@ -45,10 +45,10 @@ class ProgrammingLanguageExpressionsSolver {
         }
     }
 
-    fun solveTree(domain: Domain, model: DomainSolvingModel) {
+    fun solveTree(domain: Domain, decisionTreeMap: Map<String, DecisionTree> ) {
         solve(
             domain,
-            model.decisionTree("no_strict")!!
+            decisionTreeMap["no_strict"]!!
         ) { obj, objFromSituation ->
             obj.relationshipLinks.addAll(
                 objFromSituation.relationshipLinks.filter { it.relationshipName.contains("OperandOf") }
@@ -56,10 +56,10 @@ class ProgrammingLanguageExpressionsSolver {
         }
     }
 
-    fun solveStrict(domain: Domain, model: DomainSolvingModel) {
+    fun solveStrict(domain: Domain, decisionTreeMap: Map<String, DecisionTree>) {
         solve(
             domain,
-            model.decisionTree
+            decisionTreeMap[""]!!
         ) { obj, objFromSituation ->
             objFromSituation.definedPropertyValues.get("state")?.also {
                 if(it.value is EnumValue && (it.value as EnumValue).valueName == "omitted"){
@@ -69,10 +69,10 @@ class ProgrammingLanguageExpressionsSolver {
         }
     }
 
-    fun solveFull(domain: Domain, model: DomainSolvingModel) {
+    fun solveFull(domain: Domain, decisionTreeMap: Map<String, DecisionTree>) {
         solve(
             domain,
-            model.decisionTree
+            decisionTreeMap[""]!!
         ) { obj, objFromSituation ->
             objFromSituation.definedPropertyValues.get("state")?.also {obj.definedPropertyValues.addOrReplace(it)}
         }

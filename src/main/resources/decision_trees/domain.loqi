@@ -1,0 +1,191 @@
+//-------------------СТАТИЧЕСКАЯ СЕКЦИЯ-------------------
+//-------------------------ЕНАМЫ-------------------------
+
+enum arity {
+	unary [
+		RU.localizedName = "унарный" ;
+		EN.localizedName = "unary" ;
+	],
+	binary [
+		RU.localizedName = "бинарный" ;
+		EN.localizedName = "binary" ;
+	],
+	ternary [
+		RU.localizedName = "тернарный" ;
+		EN.localizedName = "ternary" ;
+	],
+} [
+	RU.localizedName = "арность" ;
+	EN.localizedName = "arity" ;
+]
+
+enum associativity {
+	left [
+		RU.localizedName = "левая" ;
+		EN.localizedName = "left" ;
+	],
+	right [
+		RU.localizedName = "правая" ;
+		EN.localizedName = "right" ;
+	],
+	`non-assoc` [
+		RU.localizedName = "без ассоциативности" ;
+		EN.localizedName = "non associative" ;
+	],
+} [
+	RU.localizedName = "ассоциативность" ;
+	EN.localizedName = "associativity" ;
+]
+
+enum place {
+	prefix [
+		RU.localizedName = "до операнда" ;
+		EN.localizedName = "prefix" ;
+	],
+	postfix [
+		RU.localizedName = "после операнда" ;
+		EN.localizedName = "postfix" ;
+	],
+	infix [
+		RU.localizedName = "между операндами" ;
+		EN.localizedName = "infix" ;
+	],
+	around [
+		RU.localizedName = "вокруг операндов" ;
+		EN.localizedName = "around" ;
+	],
+} [
+	RU.localizedName = "положение" ;
+	EN.localizedName = "place" ;
+]
+
+enum state {
+	unevaluated [
+		RU.localizedName = "невычислен" ;
+		EN.localizedName = "unevaluated" ;
+	],
+	evaluated [
+		RU.localizedName = "вычислен" ;
+		EN.localizedName = "evaluated" ;
+	],
+	used [
+		RU.localizedName = "использован" ;
+		EN.localizedName = "used" ;
+	],
+	omitted [ 	//b4, потому что состояние omitted не должно влиять на 
+		RU.localizedName = "опущен" ;
+		EN.localizedName = "omitted" ;
+	],
+} [
+	RU.localizedName = "состояние" ;
+	EN.localizedName = "state" ;
+]
+
+//-------------------------КЛАССЫ-------------------------
+
+class element {
+	class prop countOfTokens: int[1,2] ;
+	obj prop state: state ;
+
+	rel has(token) : {1 -> *} ;
+
+	// rel isInside(element) ;
+	// rel surrounds(element) ;
+} [
+	RU.localizedName = "элемент" ;
+	EN.localizedName = "element" ;
+]
+
+class token {
+
+	rel belongsTo(element) : opposite to element->has ;
+	rel directlyLeftOf(token) : linear ;
+	rel directlyRightOf(token) : opposite to directlyLeftOf ;
+	rel leftOf(token) : transitive to directlyLeftOf ;
+	rel rightOf(token) : transitive to directlyRightOf ;
+	rel isBetween(token, token) : between to leftOf ;
+	rel isCloserToThan(token, token) : closer to leftOf ;
+	rel isFurtherFromThan(token, token) : further to leftOf ;
+} [
+	RU.localizedName = "токен" ;
+	EN.localizedName = "token" ;
+]
+
+class operand : element {
+	
+	obj prop evaluatesTo : bool; //!b4 нужно только для логическх операций
+
+	//b4
+	rel isOperandOf(operand) : partial ; 
+	rel isOperatorTo(operand) : opposite to isOperandOf ;
+	rel isInOperandOf(operand) : transitive to isOperandOf;
+	rel isLeftOperandOf(operator) : {1->1};
+	rel isCenterOperandOf(operator) : {1->1};
+	rel isRightOperandOf(operator) : {1->1};
+
+	countOfTokens = 1 ;
+} [
+	RU.localizedName = "операнд" ;
+	EN.localizedName = "operand" ;
+]
+
+class parenthesis : element {
+
+	countOfTokens = 2 ;
+} [
+	text = "(";
+	token2text = ")";
+	RU.localizedName = "скобки" ;
+	EN.localizedName = "parenthesis" ;
+]
+
+class operator : operand {
+	class prop arity: arity ;
+	class prop place: place ; //Вообще не очень нужная характеристика, можно выкинуть
+	class prop precedence: int ;
+	class prop associativity: associativity ;
+	class prop needsLeftOperand: bool ;
+	class prop needsRightOperand: bool ;
+	class prop needsInnerOperand: bool ;
+	class prop hasStrictOperandOrder: bool = false; //можно убрать т.к. есть StrictOrderOperator
+
+	// rel isOperatorTo(operand) ;
+	rel hasLeftOperand(operand) : opposite to operand->isLeftOperandOf; //b4
+	rel hasCenterOperand(operand) : opposite to operand->isCenterOperandOf;
+	rel hasRightOperand(operand) : opposite to operand->isRightOperandOf;
+} [
+	RU.localizedName = "оператор" ;
+	EN.localizedName = "operator" ;
+]
+
+
+
+enum ExpectedValue { //b4
+	`true` [
+		RU.localizedName = "true" ;
+		EN.localizedName = "true" ;
+	],
+	`false` [
+		RU.localizedName = "false" ;
+		EN.localizedName = "false" ;
+	],
+	any [
+		RU.localizedName = "любое" ;
+		EN.localizedName = "false" ;
+	],
+} [
+	RU.localizedName = "значение" ;
+	EN.localizedName = "value" ;
+]
+
+
+class StrictOrderOperator : operator { //b4
+	class prop requiredLeftValForRight : ExpectedValue;
+	class prop requiredLeftValForCenter : ExpectedValue;
+	
+	hasStrictOperandOrder = true;
+}
+
+
+
+

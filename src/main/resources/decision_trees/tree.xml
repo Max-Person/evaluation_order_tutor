@@ -1903,7 +1903,15 @@
                     </Outcome>
                 </QuestionNode>
             </ThoughtBranch>
-            <ThoughtBranch type="bool" _alias="strict">
+            <ThoughtBranch type="bool" _alias="strict"
+               _RU_description="вычислению ${val('X','р')} ${result ? 'не' : ''} мешают операторы со строгим порядком операндов"
+               _RU_nextStepQuestion="С чего надо начать при определении того, мешают ли вычислению ${val('X','р')} операторы со строгим порядком операндов?"
+               _RU_nextStepExplanation="Это неверно. Прежде всего необходимо найти все подобные операторы, которые могут помешать вычислению ${val('X','р')}"
+
+               _EN_description="${result ? 'no' : 'some'} operators with strict operand order should be considered before ${val('X','р')}"
+               _EN_nextStepQuestion="What is the first step when considering operators with strict operand order?"
+               _EN_nextStepExplanation="That's incorrect. One should first find all such operands and check if they really hinder the evaluation of ${val('X', 'и')."
+            >
                 <CycleAggregationNode
                     _alias="Для всех операторов со строгим порядком для которых Х находится в правом или центральном операнде"
                     operator="AND" _question="2" _asNextStep="1" _endingCause="3">

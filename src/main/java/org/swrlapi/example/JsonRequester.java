@@ -3,14 +3,16 @@ package org.swrlapi.example;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import its.model.DomainSolvingModel;
+import its.model.definition.MetadataProperty;
+import its.model.definition.ObjectDef;
+import its.model.nodes.LogicAggregationNode;
+import its.model.nodes.ThoughtBranch;
 import its.questions.gen.QuestioningSituation;
 import its.reasoner.LearningSituation;
 import its.reasoner.nodes.DecisionTreeReasoner;
 import org.vstu.compprehension.models.businesslogic.Question;
 import org.vstu.compprehension.models.businesslogic.domains.Domain;
-import org.vstu.compprehension.models.businesslogic.domains.ProgrammingLanguageExpressionDomain;
 import org.vstu.compprehension.models.entities.AnswerObjectEntity;
-import org.vstu.compprehension.models.entities.ViolationEntity;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -101,7 +103,7 @@ public class JsonRequester {
         
         return switch (message.action) {
             case "find_errors" -> getFindErrorsResponse(message, situation);
-            case "next_step" -> getNextStepResponse(message);
+            case "next_step" -> getNextStepResponse(message, situation);
             case "get_supplement" -> getSupplementaryResponse(message);
             default -> message; //Не должно произойти
         };
@@ -199,14 +201,14 @@ public class JsonRequester {
                 ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(
                     tagDomain,
                     domainSolvingModel.getDecisionTrees(),
-                    helper.getModel()
+                    helper.getModel(),
+                    "next_step".equals(message.action)
                 );
             
             situationDomain = parsedDomain.domain();
             Set<Integer> operatorIndexes = situationDomain.getObjects().stream()
                 .filter(object -> object.isInstanceOf("operator"))
-                .flatMap(operand -> operand.getRelationshipLinks().listByName("has").get(0).getObjects().stream()) //здесь get(0) оставляет только левый токен, но вообще это неопределенное поведение
-                .map(token -> (Integer) token.getMetadata().get("index"))
+                .map(this::getOperatorIndexByLeftToken)
                 .collect(Collectors.toSet());
             enabledIndexes.retainAll(operatorIndexes);
         }
@@ -280,7 +282,7 @@ public class JsonRequester {
                 .toList();
         
         errResults.stream()
-            .map(error -> makeExplanation(error, situation, message.lang))
+            .map(error -> makeErrorExplanation(error, situation, message.lang))
             .forEach(message.errors::add);
         
         
@@ -301,7 +303,7 @@ public class JsonRequester {
         return message;
     }
     
-    private OntologyUtil.Error makeExplanation(
+    private OntologyUtil.Error makeErrorExplanation(
         DecisionTreeReasoner.DecisionTreeEvaluationResult error,
         LearningSituation situation,
         String languageLocaleString
@@ -324,13 +326,21 @@ public class JsonRequester {
         return explanation;
     }
     
-    private Message getNextStepResponse(Message message){
+    private int getOperatorIndexByLeftToken(ObjectDef operator){
+        //noinspection DataFlowIssue
+        return (int) operator.getRelationshipLinks()
+            .listByName("has").get(0) //здесь get(0) оставляет только левый токен, но вообще это неопределенное поведение
+            .getObjects().get(0)
+            .getMetadata().get("index");
+    }
+    
+    private Message getNextStepResponse(Message message, LearningSituation situation){
         message.type = "main";
         
-        Domain.CorrectAnswer correctAnswer = new ProgrammingLanguageExpressionDomain()
-            .getAnyNextCorrectAnswer(getOntologyHelper(message).getQuestion(), message.lang);
+        ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
+        List<ObjectDef> unevaluatedOperators = solver.getUnevaluated(situation.getDomain());
         
-        if (correctAnswer == null) {
+        if (unevaluatedOperators.isEmpty()) {
             return message;
         }
         
@@ -341,23 +351,59 @@ public class JsonRequester {
             }
         }
         
-        int correctPosition = Integer.parseInt(correctAnswer.answer.getDomainInfo().substring("op__0__".length())) - 1;
-        message.expression.get(correctPosition).enabled = false;
-        message.expression.get(correctPosition).status = "suggested";
+        ObjectDef correctOperator = unevaluatedOperators.stream()
+            .filter(operator -> solver.solveForX(operator, situation.getDomain(), domainSolvingModel.getDecisionTree()))
+            .findFirst().orElseThrow();
+        int operatorIndex = getOperatorIndexByLeftToken(correctOperator);
         
-        int last_check_order = 0;
-        for (MessageToken token : message.expression) {
-            if (token.check_order != 1000) {
-                last_check_order = Math.max(last_check_order, token.check_order);
-            }
-        }
-        message.expression.get(correctPosition).check_order = last_check_order + 1;
+        int nextOrder = message.expression.stream()
+            .mapToInt(token -> token.check_order)
+            .filter(order -> order != 1000)
+            .max().orElse(0) + 1;
         
-        OntologyUtil.Error error = new OntologyUtil.Error();
-        OntologyUtil.ErrorPart errorPart = new ErrorPart(correctAnswer.explanation.getText());
-        message.errors.add(error.add(errorPart));
+        MessageToken suggestedToken = message.expression.get(operatorIndex);
+        suggestedToken.enabled = false;
+        suggestedToken.status = "suggested";
+        suggestedToken.check_order = nextOrder;
+        
+        message.errors.add(makeSuggestionExplanation(correctOperator, situation, message.lang));
         
         return message;
+    }
+    
+    private OntologyUtil.Error makeSuggestionExplanation(
+        ObjectDef suggestedOperator,
+        LearningSituation situation,
+        String languageLocaleString
+    ){
+        QuestioningSituation textSituation = new QuestioningSituation(
+            situation.getDomain(),
+            languageLocaleString.toUpperCase()
+        );
+        textSituation.getDecisionTreeVariables().clear();
+        textSituation.getDecisionTreeVariables().put("X", suggestedOperator.getReference());
+        
+        ThoughtBranch main = domainSolvingModel.getDecisionTree().getMainBranch();
+        List<ThoughtBranch> branches = ((LogicAggregationNode) main.getStart()).getThoughtBranches();
+        
+        StringBuilder explanation = new StringBuilder(getThoughtBranchDescription(main, textSituation));
+        explanation.append(":");
+        branches.stream()
+            .map(branch -> "\n" + getThoughtBranchDescription(branch, textSituation))
+            .forEach(explanation::append);
+        
+        return new OntologyUtil.Error()
+            .add(new ErrorPart(explanation.toString()));
+    }
+    
+    private String getThoughtBranchDescription(ThoughtBranch branch, QuestioningSituation questioningSituation){
+        return questioningSituation.getTemplating()
+            .withVar("result", true)
+            .interpret(
+                branch.getMetadata()
+                    .get(new MetadataProperty("description", questioningSituation.getLocalizationCode()))
+                    .toString()
+            );
     }
     
     private Message getSupplementaryResponse(Message message){

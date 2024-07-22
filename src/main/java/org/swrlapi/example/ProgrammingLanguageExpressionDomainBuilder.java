@@ -44,7 +44,8 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     public static ParsedDomain questionToDomainModel(
         Domain domainModel,
         Map<String, DecisionTree> decisionTreeMap,
-        Model base
+        Model base,
+        boolean includeLastSelection
     ){
         Domain situationDomain = new Domain();
         ParsedDomain parseResult = new ParsedDomain(situationDomain, new ArrayList<>());
@@ -115,34 +116,38 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         solver.solveTree(situationDomain, decisionTreeMap);
         solver.solveStrict(situationDomain, decisionTreeMap);
         
-        if(!selected.isEmpty()) {
-            for (Resource baseToken : selected.subList(0, selected.size() - 1)) {
-                ObjectDef operator = baseTokensToElements.get(baseToken);
-                setEnumProperty(
-                    operator,
-                    "state",
-                    "state", "evaluated"
-                );
-                situationDomain.getObjects().stream()
-                    .filter(object -> object.isInstanceOf("operand") &&
-                        !object.getRelationshipLinks().listByName("isOperandOf").isEmpty() &&
-                        object.getRelationshipLinks().listByName("isOperandOf").stream()
-                            .allMatch(link -> link.getObjects().get(0) == operator)
-                    )
-                    .forEach(operand -> {
-                        setEnumProperty(
-                            operand,
-                            "state",
-                            "state", "used"
-                        );
-                    });
+        
+        for (Resource baseToken : selected) {
+            if(!includeLastSelection
+                && baseToken == selected.get(selected.size() - 1)
+                && baseTokensToElements.containsKey(baseToken)
+            ){
+                //в зависимости от контекста, последний выбранный объект делаем переменной, и не записываем факт его вычисления
+                newVariable(situationDomain, "X", baseTokensToElements.get(baseToken).getName());
+                continue;
             }
-            Resource currentlyChosenRes = selected.get(selected.size() - 1);
-            if(baseTokensToElements.containsKey(currentlyChosenRes)){
-                newVariable(situationDomain, "X", baseTokensToElements.get(currentlyChosenRes).getName());
-                newVariable(situationDomain, "X1", baseTokensToTokens.get(currentlyChosenRes).getName());
-            }
+            
+            ObjectDef operator = baseTokensToElements.get(baseToken);
+            setEnumProperty(
+                operator,
+                "state",
+                "state", "evaluated"
+            );
+            situationDomain.getObjects().stream()
+                .filter(object -> object.isInstanceOf("operand") &&
+                    !object.getRelationshipLinks().listByName("isOperandOf").isEmpty() &&
+                    object.getRelationshipLinks().listByName("isOperandOf").stream()
+                        .allMatch(link -> link.getObjects().get(0) == operator)
+                )
+                .forEach(operand -> {
+                    setEnumProperty(
+                        operand,
+                        "state",
+                        "state", "used"
+                    );
+                });
         }
+        
         
         situationDomain.validateAndThrow();
         debugDumpLoqi(situationDomain, "out.loqi");

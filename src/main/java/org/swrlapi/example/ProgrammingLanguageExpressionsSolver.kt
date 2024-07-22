@@ -16,24 +16,27 @@ import its.reasoner.nodes.DecisionTreeReasoner._static.solve
  */
 class ProgrammingLanguageExpressionsSolver {
 
+    fun getUnevaluated(domain: Domain): List<ObjectDef> {
+        return domain.objects.filter {
+            it.isInstanceOf("operator")
+                    && it.getPropertyValue("state") == EnumValue("state", "unevaluated")
+        }.sortedBy { it.getPropertyValue("precedence").toString().toInt()}
+    }
+
+    fun solveForX(xObject: ObjectDef, domain: Domain, decisionTree: DecisionTree,) : Boolean{
+        val situation = LearningSituation(domain, mutableMapOf("X" to xObject.reference))
+        println("solve iter for $xObject")
+        val results = decisionTree.solve(situation)
+        return results.last.node.value
+    }
+
     private fun solve(domain: Domain, decisionTree: DecisionTree, retain: (ObjectDef, ObjectDef) -> Unit) {
         val situationDomain = domain.copy()
-        val situation = LearningSituation(situationDomain)
-
-        fun getUnevaluated(domain: Domain): List<ObjectDef> {
-            return domain.objects.filter {
-                it.isInstanceOf("operator")
-                        && it.getPropertyValue("state") == EnumValue("state", "unevaluated")
-            }.sortedBy { it.getPropertyValue("precedence").toString().toInt()}
-        }
 
         var unevaluated = getUnevaluated(situationDomain)
         while (unevaluated.isNotEmpty()) {
             for (x in unevaluated) {
-                situation.decisionTreeVariables.clear()
-                situation.decisionTreeVariables["X"] = x.reference
-                println("solve iter for $x")
-                decisionTree.solve(situation)
+                solveForX(x, situationDomain, decisionTree)
             }
             val newUnevaluated = getUnevaluated(situationDomain)
             unevaluated = newUnevaluated

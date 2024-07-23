@@ -28,6 +28,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     private static final String BASE_TTL_PREF = "http://www.test/test.owl#";
     
     public static void debugDumpLoqi(Domain model, String filename){
+        if(!ENABLE_DEBUG_SAVE) return;
         try {
             DomainLoqiWriter.saveDomain(
                 model,
@@ -269,6 +270,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     }
     
     public static void saveModel(String filename, Model model){
+        if(!ENABLE_DEBUG_SAVE) return;
         try {
             OutputStream out = new FileOutputStream(DEBUG_DIR + filename);
             model.write(out, "TTL");
@@ -279,4 +281,6 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             throw new RuntimeException(e);
         }
     }
+    
+    private static final boolean ENABLE_DEBUG_SAVE = false;
 }

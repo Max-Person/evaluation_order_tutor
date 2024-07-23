@@ -36,5 +36,6 @@ public class RestRequester {
 
         server.setExecutor(null); // creates a default executor
         server.start();
+        System.out.println("Started");
     }
 }

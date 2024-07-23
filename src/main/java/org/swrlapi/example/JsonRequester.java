@@ -5,11 +5,13 @@ import com.google.gson.GsonBuilder;
 import its.model.DomainSolvingModel;
 import its.model.definition.MetadataProperty;
 import its.model.definition.ObjectDef;
+import its.model.definition.ObjectRef;
 import its.model.nodes.LogicAggregationNode;
 import its.model.nodes.ThoughtBranch;
 import its.questions.gen.QuestioningSituation;
 import its.reasoner.LearningSituation;
 import its.reasoner.nodes.DecisionTreeReasoner;
+import kotlin.Pair;
 import org.vstu.compprehension.models.businesslogic.Question;
 import org.vstu.compprehension.models.businesslogic.domains.Domain;
 import org.vstu.compprehension.models.entities.AnswerObjectEntity;
@@ -32,14 +34,48 @@ class MessageToken {
 }
 
 class Message {
-    List<MessageToken> expression;
-    List<MessageToken> answers;
-    List<OntologyUtil.Error> errors;
-    String lang;
-    String task_lang;
-    String action;
+    List<MessageToken> expression; //RW
+    List<OntologyUtil.Error> errors; //W
+    String lang; //R
+    String task_lang; //R
+    String action; //R
+    
+    List<ExplanationInfo> explanations; //W
+    QuestionInfo questionInfo; //W
+    List<AnswerInfo> answers; //R
+    SupplementaryInfo supplementaryInfo; //RW
+}
+
+class ExplanationInfo{
+    String text;
+    String type;
+}
+
+class QuestionInfo {
     String type;
     String text;
+    List<AnswerInfo> answerOptions;
+    List<AnswerInfo> matchOptions;
+}
+
+class AnswerInfo {
+    String text;
+    int id;
+    
+    public static AnswerInfo fromPair(Pair<String, Integer> pair){
+        AnswerInfo answerInfo = new AnswerInfo();
+        answerInfo.text = pair.getFirst();
+        answerInfo.id = pair.getSecond();
+        return answerInfo;
+    }
+}
+
+class SupplementaryInfo {
+    Map<String, ObjectRef> decisionTreeVariables;
+    Map<String, String> discussedVariables;
+    Map<Integer, Integer> givenAnswers;
+    Map<String, Boolean> assumedResults;
+    int nextQuestionStateId;
 }
 
 public class JsonRequester {
@@ -77,7 +113,10 @@ public class JsonRequester {
         Message response = getResponse(message);
         double estimatedTimeInSeconds = ((double) System.nanoTime() - startTime) / 1_000_000_000;
         System.out.println("TIME: " + estimatedTimeInSeconds);
-        return new GsonBuilder().setPrettyPrinting().create().toJson(response);
+        return new GsonBuilder()
+            .setPrettyPrinting()
+            .create()
+            .toJson(response);
     }
     
     private Message getResponse(Message message) {
@@ -104,7 +143,7 @@ public class JsonRequester {
         return switch (message.action) {
             case "find_errors" -> getFindErrorsResponse(message, situation);
             case "next_step" -> getNextStepResponse(message, situation);
-            case "get_supplement" -> getSupplementaryResponse(message);
+            case "get_supplement" -> getSupplementaryResponse(message, situation);
             default -> message; //Не должно произойти
         };
         
@@ -125,9 +164,6 @@ public class JsonRequester {
         }
         if (message.action == null) {
             message.action = "find_errors";
-        }
-        if (message.type == null) {
-            message.type = "main";
         }
         
         for (MessageToken token : message.expression) {
@@ -335,7 +371,6 @@ public class JsonRequester {
     }
     
     private Message getNextStepResponse(Message message, LearningSituation situation){
-        message.type = "main";
         
         ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
         List<ObjectDef> unevaluatedOperators = solver.getUnevaluated(situation.getDomain());
@@ -406,37 +441,10 @@ public class JsonRequester {
             );
     }
     
-    private Message getSupplementaryResponse(Message message){
-        message.type = "supplementary";
-        if (message.errors != null && !message.errors.isEmpty()) {
-            message.answers = new ArrayList<>();
-            String lawName = message.errors.get(0).type;
-            OntologyHelper helper = new OntologyHelper(
-                createExpressionFromMessage(message),
-                getProgrammingLanguage(message),
-                message.lang,
-                lawName
-            );
-            Question q = helper.getQuestion();
-            
-            if (q == null) {
-                message.type = "no_supplementary";
-                return message;
-            }
-            
-            message.text = q.getQuestionText().getText();
-            for (AnswerObjectEntity answer : q.getAnswerObjects()) {
-                MessageToken token = new MessageToken();
-                token.text = answer.getHyperText();
-                token.enabled = true;
-                Domain.InterpretSentenceResult res = helper.judgeSupplementaryQuestion(answer);
-                
-                token.status = res.isAnswerCorrect ? "correct" : "wrong";
-                token.additional_info = res.violations.get(0).getLawName();
-                message.answers.add(token);
-            }
-            message.errors = new ArrayList<>();
-        }
+    private final DecisionTreeSupQuestionHelper supQuestionHelper = new DecisionTreeSupQuestionHelper(domainSolvingModel.getDecisionTree());
+    
+    private Message getSupplementaryResponse(Message message, LearningSituation situation) {
+        supQuestionHelper.makeSupplementaryQuestion(message, situation.getDomain());
         return message;
     }
 }

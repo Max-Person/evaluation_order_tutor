@@ -124,6 +124,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
             ){
                 //в зависимости от контекста, последний выбранный объект делаем переменной, и не записываем факт его вычисления
                 newVariable(situationDomain, "X", baseTokensToElements.get(baseToken).getName());
+                newVariable(situationDomain, "X1", baseTokensToTokens.get(baseToken).getName());
                 continue;
             }
             

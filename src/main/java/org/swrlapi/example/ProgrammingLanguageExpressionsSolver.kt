@@ -27,7 +27,7 @@ class ProgrammingLanguageExpressionsSolver {
         val situation = LearningSituation(domain, mutableMapOf("X" to xObject.reference))
         println("solve iter for $xObject")
         val results = decisionTree.solve(situation)
-        return results.last.node.value
+        return results.last().node.value
     }
 
     private fun solve(domain: Domain, decisionTree: DecisionTree, retain: (ObjectDef, ObjectDef) -> Unit) {

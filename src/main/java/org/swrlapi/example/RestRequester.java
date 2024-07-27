@@ -22,7 +22,13 @@ public class RestRequester {
                 result.write(buffer, 0, length);
             }
             String request = result.toString("UTF-8");
-            String response = requester.response(request);
+            String response = "";
+            try {
+                 response = requester.response(request);
+            } catch (Throwable e){
+                System.out.println("Got exception below. Returning empty string");
+                e.printStackTrace();
+            }
             Headers headers = new Headers();
             headers.set("Content-Type", "application/json");
             exchange.getResponseHeaders().putAll(headers);

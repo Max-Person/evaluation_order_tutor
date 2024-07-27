@@ -99,6 +99,7 @@ public class JsonRequester {
     }
 
     public String response(String request){
+        System.out.println("Request get:\n" + request);
         Message message;
         try {
             message = new Gson().fromJson(
@@ -110,13 +111,20 @@ public class JsonRequester {
         }
         
         long startTime = System.nanoTime();
-        Message response = getResponse(message);
+        Message response = message;
+        try {
+             response = getResponse(message);
+        } catch (Throwable e){
+            e.printStackTrace();
+        }
         double estimatedTimeInSeconds = ((double) System.nanoTime() - startTime) / 1_000_000_000;
         System.out.println("TIME: " + estimatedTimeInSeconds);
-        return new GsonBuilder()
+        String responseJsonString = new GsonBuilder()
             .setPrettyPrinting()
             .create()
             .toJson(response);
+        System.out.println("Responding with:\n" + responseJsonString + "\n");
+        return responseJsonString;
     }
     
     private Message getResponse(Message message) {

@@ -82,7 +82,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
                 "state",
                 className.equals("operand") ? "evaluated" : "unevaluated"
             );
-            setBoolProperty(resElement, "evaluatesTo", true);
+            if(!"parenthesis".equals(className)) setBoolProperty(resElement, "evaluatesTo", true);
             ObjectDef resToken = resTokenFromBase(baseToken, resElement);
             
             Pair<String, String> loc = getLocalizedName(baseToken, className);

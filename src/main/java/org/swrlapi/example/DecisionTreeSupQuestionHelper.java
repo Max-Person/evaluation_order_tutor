@@ -114,7 +114,7 @@ public class DecisionTreeSupQuestionHelper {
     private void writeQuestionToMessage(Message message, Question question){
         QuestionInfo questionInfo = new QuestionInfo();
         questionInfo.text = question.getText();
-        questionInfo.type = question.isAggregation() ? "matching" : "single"; //FIXME
+        questionInfo.type = question.getType().toString();
         questionInfo.answerOptions = question.getOptions().stream().map(AnswerInfo::fromPair).toList();
         if(question.isAggregation()){
             questionInfo.matchOptions = AggregationQuestionState.aggregationMatching(

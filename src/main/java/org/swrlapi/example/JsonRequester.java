@@ -12,9 +12,6 @@ import its.questions.gen.QuestioningSituation;
 import its.reasoner.LearningSituation;
 import its.reasoner.nodes.DecisionTreeReasoner;
 import kotlin.Pair;
-import org.vstu.compprehension.models.businesslogic.Question;
-import org.vstu.compprehension.models.businesslogic.domains.Domain;
-import org.vstu.compprehension.models.entities.AnswerObjectEntity;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,7 +26,6 @@ class MessageToken {
     String text;
     Integer check_order;
     String status;
-    String additional_info;
     Boolean enabled;
 }
 
@@ -201,17 +197,15 @@ public class JsonRequester {
     }
     
     private Message getSupportedProgrammingLanguagesResponse(Message message){
-        setMessageTokens(message, "cpp", "cs", "python");
+        setMessageTokens(message, "cpp", "python");
         return message;
     }
     
     private String getProgrammingLanguage(Message message){
-        if (message.task_lang.equals("cpp")) {
-            return  "C++";
-        } else if (message.task_lang.equals("cs")) {
-            return  "C#";
-        } else {
+        if (message.task_lang.equals("python")) {
             return  "Python";
+        } else {
+            return  "C++";
         }
     }
     

@@ -320,12 +320,8 @@
                             <DecisionTreeVar name="X" />
                             <Property name="needsLeftOperand" />
                         </GetPropertyValue>
-                        <GetPropertyValue> <!-- FIXME -->
-                            <DecisionTreeVar name="X" />
-                            <Property name="needsLeftOperand" />
-                        </GetPropertyValue>
                     </Expression>
-                    <Outcome value="(false; *)"
+                    <Outcome value="false"
                         _RU_explanation="Это неверно. ${class('X','и')} не имеет (не требует) левого операнда."
                         _RU_nextStepQuestion="Какие выводы можно сделать, если ${val('X','и')} не требует левого операнда?"
                         _RU_nextStepExplanation="Это неверно. Если оператор не имеет левого операнда, то и дальнейших вычислений его левый операнд требовать не может."
@@ -336,7 +332,7 @@
                     >
                         <BranchResultNode value="true" />
                     </Outcome>
-                    <Outcome value="(true; *)"
+                    <Outcome value="true"
                         _RU_explanation="Это неверно. ${class('X','д')} всегда необходим левый операнд."
                         _RU_nextStepQuestion="Какие выводы можно сделать, если ${val('X','д')} нужен левый операнд?"
                         _RU_nextStepExplanation="Это неверно. Необходимо дальше рассмотреть потенциально конкурирующие с ${val('X','т')} операторы, и делать выводы исходя из их наличия/отсуствия."

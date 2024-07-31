@@ -177,7 +177,7 @@ enum ExpectedValue { //b4
 	],
 	any [
 		RU.localizedName = "любое" ;
-		EN.localizedName = "false" ;
+		EN.localizedName = "any value" ;
 	],
 } [
 	RU.localizedName = "значение" ;

@@ -93,9 +93,16 @@ public class JsonRequester {
             System.out.println(requester.response(jsonString));
         }
     }
+    
+    public static boolean DEBUG_LOG = false;
+    public static void debugLog(Object object){
+        if(DEBUG_LOG){
+            System.out.println(object);
+        }
+    }
 
     public String response(String request){
-        System.out.println("Request get:\n" + request);
+        debugLog("Request get:\n" + request);
         Message message;
         try {
             message = new Gson().fromJson(
@@ -114,12 +121,12 @@ public class JsonRequester {
             e.printStackTrace();
         }
         double estimatedTimeInSeconds = ((double) System.nanoTime() - startTime) / 1_000_000_000;
-        System.out.println("TIME: " + estimatedTimeInSeconds);
+        debugLog("TIME: " + estimatedTimeInSeconds);
         String responseJsonString = new GsonBuilder()
             .setPrettyPrinting()
             .create()
             .toJson(response);
-        System.out.println("Responding with:\n" + responseJsonString + "\n");
+        debugLog("Responding with:\n" + responseJsonString + "\n");
         return responseJsonString;
     }
     

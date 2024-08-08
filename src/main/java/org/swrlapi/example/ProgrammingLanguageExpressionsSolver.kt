@@ -7,6 +7,7 @@ import its.model.definition.types.EnumValue
 import its.model.nodes.DecisionTree
 import its.reasoner.LearningSituation
 import its.reasoner.nodes.DecisionTreeReasoner._static.solve
+import org.swrlapi.example.JsonRequester.debugLog
 
 /**
  * TODO Class Description
@@ -25,7 +26,7 @@ class ProgrammingLanguageExpressionsSolver {
 
     fun solveForX(xObject: ObjectDef, domain: Domain, decisionTree: DecisionTree,) : Boolean{
         val situation = LearningSituation(domain, mutableMapOf("X" to xObject.reference))
-        println("solve iter for $xObject")
+        debugLog("solve iter for $xObject")
         val results = decisionTree.solve(situation)
         return results.last().node.value
     }

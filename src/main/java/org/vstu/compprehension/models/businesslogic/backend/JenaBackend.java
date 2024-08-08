@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.jena.ontology.OntModelSpec.OWL_MEM;
+import static org.swrlapi.example.JsonRequester.debugLog;
 
 public class JenaBackend extends Backend {
 
@@ -179,7 +180,7 @@ public class JenaBackend extends Backend {
 
         long estimatedTime = System.nanoTime() - startTime;
         // print time report. TODO: remove the print
-        System.out.println("Time Jena spent on reasoning: " + String.valueOf((float) (estimatedTime / 1000 / 1000) / 1000) + " seconds.");
+        debugLog("Time Jena spent on reasoning: " + String.valueOf((float) (estimatedTime / 1000 / 1000) / 1000) + " seconds.");
 
         // use the inferred results (inf) ...
         model.add( inf );

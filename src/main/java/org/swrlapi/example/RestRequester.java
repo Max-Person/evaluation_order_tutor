@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 
+import static org.swrlapi.example.JsonRequester.debugLog;
+
 public class RestRequester {
     public static void main(String[] args) throws IOException {
         JsonRequester requester = new JsonRequester();
@@ -26,7 +28,7 @@ public class RestRequester {
             try {
                  response = requester.response(request);
             } catch (Throwable e){
-                System.out.println("Got exception below. Returning empty string");
+                debugLog("Got exception below. Returning empty string");
                 e.printStackTrace();
             }
             Headers headers = new Headers();

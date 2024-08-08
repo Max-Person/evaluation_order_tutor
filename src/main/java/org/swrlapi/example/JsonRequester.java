@@ -353,9 +353,11 @@ public class JsonRequester {
         
         textSituation.getDecisionTreeVariables().clear();
         textSituation.getDecisionTreeVariables().putAll(error.getVariablesSnapshot());
-        String explanationTemplate = Optional.ofNullable(error.getNode().getMetadata().get("explanation"))
+        String explanationTemplate = Optional.ofNullable(
+                error.getNode().getMetadata().get(new MetadataProperty("explanation", languageLocaleString.toUpperCase()))
+            )
             .map(Object::toString)
-            .orElse("WRONG");
+            .orElseThrow(() -> new IllegalStateException("no explanation for node " + error.getNode().getDescription()));
         String explanationText = textSituation.getTemplating().interpret(explanationTemplate);
         
         OntologyUtil.Error explanation = new OntologyUtil.Error();

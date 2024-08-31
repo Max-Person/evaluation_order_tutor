@@ -1,16 +1,16 @@
 ## SWRLAPI based parsing c language, build evaluation order DAG and fault reasons determining
 
-https://taiga.seschool.ru/project/oasychev-modelirovanie-ponimaniia-iadro/issue/17
-
 ### Building and Running
 
 To build and run this project you must have the following items installed:
 
-+ [Java 9](http://www.oracle.com/technetwork/java/javase/downloads/index.html)
++ [Java 17](https://www.oracle.com/java/technologies/downloads/#java17)
 + A tool for checking out a [Git](http://git-scm.com/) repository
 + Apache's [Maven](http://maven.apache.org/index.html)
++ [Max-Person/its_QuestionGen](https://github.com/Max-Person/its_QuestionGen) and its dependencies installed
 
 Build it with Maven:
+
     mvn clean install
 
 On build completion, your local Maven repository will contain generated ```ontology_cpp_parsing-${version}.jar```

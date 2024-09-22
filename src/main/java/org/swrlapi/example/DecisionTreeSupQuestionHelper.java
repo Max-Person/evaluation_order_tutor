@@ -1,6 +1,6 @@
 package org.swrlapi.example;
 
-import its.model.definition.Domain;
+import its.model.definition.DomainModel;
 import its.model.nodes.DecisionTree;
 import its.questions.gen.QuestioningSituation;
 import its.questions.gen.formulations.Localization;
@@ -8,22 +8,8 @@ import its.questions.gen.states.*;
 import its.questions.gen.strategies.FullBranchStrategy;
 import its.questions.gen.strategies.QuestionAutomata;
 import kotlin.Pair;
-import lombok.val;
-import org.vstu.compprehension.models.businesslogic.Matching;
-import org.vstu.compprehension.models.businesslogic.SingleChoice;
-import org.vstu.compprehension.models.entities.AnswerObjectEntity;
-import org.vstu.compprehension.models.entities.EnumData.QuestionType;
-import org.vstu.compprehension.models.entities.ExerciseAttemptEntity;
-import org.vstu.compprehension.models.entities.QuestionEntity;
-import org.vstu.compprehension.models.entities.QuestionOptions.MatchingQuestionOptionsEntity;
-import org.vstu.compprehension.models.entities.QuestionOptions.SingleChoiceOptionsEntity;
-import org.vstu.compprehension.models.entities.ResponseEntity;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * TODO Class Description
@@ -44,7 +30,7 @@ public class DecisionTreeSupQuestionHelper {
     
     
     //DT = Decision Tree
-    void makeSupplementaryQuestion(Message message, Domain situationDomain) {
+    void makeSupplementaryQuestion(Message message, DomainModel situationDomain) {
         
         //создать ситуацию, описывающую контекст задания вспомогательных вопросов
         QuestioningSituation situation = makeQuestioningSituation(message, situationDomain);
@@ -87,7 +73,7 @@ public class DecisionTreeSupQuestionHelper {
         writeToSupplementaryInfoToMessage(message, situation, state, res);
     }
     
-    private QuestioningSituation makeQuestioningSituation(Message message, Domain situationDomain){
+    private QuestioningSituation makeQuestioningSituation(Message message, DomainModel situationDomain) {
         if(message.supplementaryInfo == null){
             return new QuestioningSituation(situationDomain, message.lang.toUpperCase());
         }

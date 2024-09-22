@@ -1,7 +1,6 @@
 package org.swrlapi.example
 
-import its.model.DomainSolvingModel
-import its.model.definition.Domain
+import its.model.definition.DomainModel
 import its.model.definition.ObjectDef
 import its.model.definition.types.EnumValue
 import its.model.nodes.DecisionTree
@@ -17,21 +16,21 @@ import org.swrlapi.example.JsonRequester.debugLog
  */
 class ProgrammingLanguageExpressionsSolver {
 
-    fun getUnevaluated(domain: Domain): List<ObjectDef> {
+    fun getUnevaluated(domain: DomainModel): List<ObjectDef> {
         return domain.objects.filter {
             it.isInstanceOf("operator")
                     && it.getPropertyValue("state") == EnumValue("state", "unevaluated")
         }.sortedBy { it.getPropertyValue("precedence").toString().toInt()}
     }
 
-    fun solveForX(xObject: ObjectDef, domain: Domain, decisionTree: DecisionTree,) : Boolean{
+    fun solveForX(xObject: ObjectDef, domain: DomainModel, decisionTree: DecisionTree): Boolean {
         val situation = LearningSituation(domain, mutableMapOf("X" to xObject.reference))
         debugLog("solve iter for $xObject")
         val results = decisionTree.solve(situation)
         return results.last().node.value
     }
 
-    private fun solve(domain: Domain, decisionTree: DecisionTree, retain: (ObjectDef, ObjectDef) -> Unit) {
+    private fun solve(domain: DomainModel, decisionTree: DecisionTree, retain: (ObjectDef, ObjectDef) -> Unit) {
         val situationDomain = domain.copy()
 
         var unevaluated = getUnevaluated(situationDomain)
@@ -49,7 +48,7 @@ class ProgrammingLanguageExpressionsSolver {
         }
     }
 
-    fun solveTree(domain: Domain, decisionTreeMap: Map<String, DecisionTree> ) {
+    fun solveTree(domain: DomainModel, decisionTreeMap: Map<String, DecisionTree>) {
         solve(
             domain,
             decisionTreeMap["no_strict"]!!
@@ -63,7 +62,7 @@ class ProgrammingLanguageExpressionsSolver {
         }
     }
 
-    fun solveStrict(domain: Domain, decisionTreeMap: Map<String, DecisionTree>) {
+    fun solveStrict(domain: DomainModel, decisionTreeMap: Map<String, DecisionTree>) {
         solve(
             domain,
             decisionTreeMap[""]!!
@@ -76,7 +75,7 @@ class ProgrammingLanguageExpressionsSolver {
         }
     }
 
-    fun solveFull(domain: Domain, decisionTreeMap: Map<String, DecisionTree>) {
+    fun solveFull(domain: DomainModel, decisionTreeMap: Map<String, DecisionTree>) {
         solve(
             domain,
             decisionTreeMap[""]!!

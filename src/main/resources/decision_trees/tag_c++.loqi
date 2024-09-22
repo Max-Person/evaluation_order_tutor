@@ -53,8 +53,8 @@ class `operator_?` : StrictOrderOperator {
 	countOfTokens = 2 ;
 
 	isTConditional = true;
-	requiredLeftValForRight = ExpectedValue:`true` ;
-	requiredLeftValForCenter = ExpectedValue:`false` ;
+	requiredLeftValForRight = ExpectedValue:`false` ;
+	requiredLeftValForCenter = ExpectedValue:`true` ;
 } [
 	text = "?" ;
 	token2text = ":";
@@ -656,8 +656,8 @@ class `operator_postfix_++` : operator {
 	countOfTokens = 1 ;
 } [
 	text = "++" ;
-	RU.localizedName = "оператор ++" ;
-	EN.localizedName = "operator ++" ;
+	RU.localizedName = "оператор ▯++" ;
+	EN.localizedName = "operator ▯++" ;
 ]
 
 class `operator_postfix_--` : operator {
@@ -672,8 +672,8 @@ class `operator_postfix_--` : operator {
 	countOfTokens = 1 ;
 } [
 	text = "--" ;
-	RU.localizedName = "оператор --" ;
-	EN.localizedName = "operator --" ;
+	RU.localizedName = "оператор ▯--" ;
+	EN.localizedName = "operator ▯--" ;
 ]
 
 class `operator_prefix_++` : operator {
@@ -688,8 +688,8 @@ class `operator_prefix_++` : operator {
 	countOfTokens = 1 ;
 } [
 	text = "++" ;
-	RU.localizedName = "оператор ++" ;
-	EN.localizedName = "operator ++" ;
+	RU.localizedName = "оператор ++▯" ;
+	EN.localizedName = "operator ++▯" ;
 ]
 
 class `operator_prefix_--` : operator {
@@ -704,8 +704,8 @@ class `operator_prefix_--` : operator {
 	countOfTokens = 1 ;
 } [
 	text = "--" ;
-	RU.localizedName = "оператор --" ;
-	EN.localizedName = "operator --" ;
+	RU.localizedName = "оператор --▯" ;
+	EN.localizedName = "operator --▯" ;
 ]
 
 class operator_sizeof : operator {

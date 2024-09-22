@@ -3,7 +3,7 @@ package org.swrlapi.example;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import its.model.DomainSolvingModel;
-import its.model.definition.MetadataProperty;
+import its.model.definition.DomainModel;
 import its.model.definition.ObjectDef;
 import its.model.definition.ObjectRef;
 import its.model.nodes.LogicAggregationNode;
@@ -140,7 +140,7 @@ public class JsonRequester {
         }
         
         message.errors = new ArrayList<>();
-        its.model.definition.Domain situationDomain = parse(message);
+        DomainModel situationDomain = parse(message);
         
         if(!message.errors.isEmpty() || situationDomain == null){
             return message;
@@ -223,7 +223,7 @@ public class JsonRequester {
         );
     }
     
-    private its.model.definition.Domain parse(Message message){
+    private DomainModel parse(Message message) {
         OntologyHelper helper = getOntologyHelper(message);
         
         Set<Integer> indexes = IntStream.range(0, message.expression.size())
@@ -235,19 +235,16 @@ public class JsonRequester {
         Set<Integer> enabledIndexes = new HashSet<>(indexes);
         enabledIndexes.removeAll(getOperandPositions(helper));
         
-        its.model.definition.Domain situationDomain = null;
+        DomainModel situationDomain = null;
         if(invalidTokensIndexes.isEmpty()){
-            its.model.definition.Domain tagDomain = domainSolvingModel.getTagsData()
-                .get(getProgrammingLanguage(message).toLowerCase())
-                .copy();
-            tagDomain.addMerge(domainSolvingModel.getDomain());
+            DomainModel tagDomain = domainSolvingModel.getMergedTagDomain(getProgrammingLanguage(message).toLowerCase());
             
             ProgrammingLanguageExpressionDomainBuilder.ParsedDomain parsedDomain =
                 ProgrammingLanguageExpressionDomainBuilder.questionToDomainModel(
                     tagDomain,
                     domainSolvingModel.getDecisionTrees(),
                     helper.getModel(),
-                    "next_step".equals(message.action)
+                    !"next_step".equals(message.action)
                 );
             
             situationDomain = parsedDomain.domain();
@@ -339,7 +336,7 @@ public class JsonRequester {
                 }
             }
         } else {
-            int errIndex = Integer.parseInt(situation.getDomain().getVariables().get("X1")
+            int errIndex = Integer.parseInt(situation.getDomainModel().getVariables().get("X1")
                 .getValueObject()
                 .getMetadata().get("index").toString());
             message.expression.get(errIndex).status = "wrong";
@@ -354,14 +351,14 @@ public class JsonRequester {
         String languageLocaleString
     ){
         QuestioningSituation textSituation = new QuestioningSituation(
-            situation.getDomain(),
+            situation.getDomainModel(),
             languageLocaleString.toUpperCase()
         );
         
         textSituation.getDecisionTreeVariables().clear();
         textSituation.getDecisionTreeVariables().putAll(error.getVariablesSnapshot());
         String explanationTemplate = Optional.ofNullable(
-                error.getNode().getMetadata().get(new MetadataProperty("explanation", languageLocaleString.toUpperCase()))
+                error.getNode().getMetadata().get(languageLocaleString.toUpperCase(), "explanation")
             )
             .map(Object::toString)
             .orElseThrow(() -> new IllegalStateException("no explanation for node " + error.getNode().getDescription()));
@@ -384,7 +381,7 @@ public class JsonRequester {
     private Message getNextStepResponse(Message message, LearningSituation situation){
         
         ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
-        List<ObjectDef> unevaluatedOperators = solver.getUnevaluated(situation.getDomain());
+        List<ObjectDef> unevaluatedOperators = solver.getUnevaluated(situation.getDomainModel());
         
         if (unevaluatedOperators.isEmpty()) {
             return message;
@@ -398,7 +395,7 @@ public class JsonRequester {
         }
         
         ObjectDef correctOperator = unevaluatedOperators.stream()
-            .filter(operator -> solver.solveForX(operator, situation.getDomain(), domainSolvingModel.getDecisionTree()))
+            .filter(operator -> solver.solveForX(operator, situation.getDomainModel(), domainSolvingModel.getDecisionTree()))
             .findFirst().orElseThrow();
         int operatorIndex = getOperatorIndexByLeftToken(correctOperator);
         
@@ -423,7 +420,7 @@ public class JsonRequester {
         String languageLocaleString
     ){
         QuestioningSituation textSituation = new QuestioningSituation(
-            situation.getDomain(),
+            situation.getDomainModel(),
             languageLocaleString.toUpperCase()
         );
         textSituation.getDecisionTreeVariables().clear();
@@ -447,7 +444,7 @@ public class JsonRequester {
             .withVar("result", true)
             .interpret(
                 branch.getMetadata()
-                    .get(new MetadataProperty("description", questioningSituation.getLocalizationCode()))
+                    .get(questioningSituation.getLocalizationCode(), "description")
                     .toString()
             );
     }
@@ -455,7 +452,7 @@ public class JsonRequester {
     private final DecisionTreeSupQuestionHelper supQuestionHelper = new DecisionTreeSupQuestionHelper(domainSolvingModel.getDecisionTree());
     
     private Message getSupplementaryResponse(Message message, LearningSituation situation) {
-        supQuestionHelper.makeSupplementaryQuestion(message, situation.getDomain());
+        supQuestionHelper.makeSupplementaryQuestion(message, situation.getDomainModel());
         return message;
     }
 }

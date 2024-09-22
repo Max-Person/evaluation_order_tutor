@@ -1,18 +1,14 @@
 package org.swrlapi.example;
 
 import its.model.definition.ClassDef;
-import its.model.definition.Domain;
-import its.model.definition.EnumValueRef;
+import its.model.definition.DomainModel;
 import its.model.definition.ObjectDef;
 import its.model.definition.loqi.DomainLoqiWriter;
-import its.model.definition.rdf.DomainRDFFiller;
-import its.model.definition.rdf.RDFUtils;
 import its.model.nodes.DecisionTree;
-import lombok.val;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.jena.rdf.model.Model;
-import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 
 import java.io.*;
@@ -27,7 +23,7 @@ public class ProgrammingLanguageExpressionDomainBuilder {
     private static final String DEBUG_DIR = "C:\\Uni\\CompPrehension_mainDir\\ontology_evaluation_order_check\\src\\main\\resources\\decision_trees\\";
     private static final String BASE_TTL_PREF = "http://www.test/test.owl#";
     
-    public static void debugDumpLoqi(Domain model, String filename){
+    public static void debugDumpLoqi(DomainModel model, String filename) {
         if(!ENABLE_DEBUG_SAVE) return;
         try {
             DomainLoqiWriter.saveDomain(
@@ -40,24 +36,41 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         }
     }
     
-    public record ParsedDomain(Domain domain, List<Integer> errorPos){}
+    public record ParsedDomain(DomainModel domain, List<Integer> errorPos) {
+    }
     
     public static ParsedDomain questionToDomainModel(
-        Domain domainModel,
+        DomainModel domainModel,
         Map<String, DecisionTree> decisionTreeMap,
         Model base,
-        boolean includeLastSelection
-    ){
-        Domain situationDomain = new Domain();
-        ParsedDomain parseResult = new ParsedDomain(situationDomain, new ArrayList<>());
-        
+        boolean isLastSelectionVariable
+    ) {
         Property studentPosProperty = base.getProperty(BASE_TTL_PREF + "student_pos_number");
         List<Resource> selected = base.listSubjectsWithProperty(studentPosProperty)
             .toList().stream()
             .sorted(Comparator.comparing(resource -> resource.getProperty(studentPosProperty).getInt()))
             .toList();
-        
+        return questionToDomainModel(
+            domainModel,
+            decisionTreeMap,
+            base,
+            selected,
+            isLastSelectionVariable
+        );
+    }
+    
+    private static ParsedDomain questionToDomainModel(
+        DomainModel domainModel,
+        Map<String, DecisionTree> decisionTreeMap,
+        Model base,
+        List<Resource> selectedTokens,
+        boolean isLastSelectionVariable
+    ) {
         saveModel("base.ttl", base);
+        
+        DomainModel situationDomain = new DomainModel();
+        ParsedDomain parseResult = new ParsedDomain(situationDomain, new ArrayList<>());
+        
         Property indexProperty = base.getProperty(BASE_TTL_PREF + "index");
         List<Resource> baseTokens = base.listSubjectsWithProperty(indexProperty).toList().stream()
             .sorted(Comparator.comparingInt((a) -> a.getProperty(indexProperty).getInt()))
@@ -68,42 +81,18 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         Map<Resource, Resource> complexPairsMap = getComplexPairsMap(baseTokens);
         
         for(Resource baseToken : baseTokens){
-            if(baseTokensToTokens.containsKey(baseToken))
-                continue;
-            
-            ParsedClassName parsedClassName = className(baseToken, domainModel);
-            String className = parsedClassName.className;
-            if(!parsedClassName.isCorrect){
-                parseResult.errorPos.add(getIndex(baseToken));
-            }
-            ObjectDef resElement = newObject(situationDomain, "element_" + baseToken.getLocalName(), className);
-            setEnumProperty(resElement,
-                "state",
-                "state",
-                className.equals("operand") ? "evaluated" : "unevaluated"
+            createAndPutObjects(
+                baseToken,
+                domainModel,
+                situationDomain,
+                parseResult,
+                baseTokensToTokens,
+                baseTokensToElements,
+                complexPairsMap
             );
-            if(!"parenthesis".equals(className)) setBoolProperty(resElement, "evaluatesTo", true);
-            ObjectDef resToken = resTokenFromBase(baseToken, resElement);
-            
-            Pair<String, String> loc = getLocalizedName(baseToken, className);
-            addLocalizedName(resElement, loc);
-            addLocalizedName(resToken, loc);
-            
-            baseTokensToTokens.put(baseToken, resToken);
-            baseTokensToElements.put(baseToken, resElement);
-            
-            if(complexPairsMap.containsKey(baseToken)){
-                Resource otherBaseToken = complexPairsMap.get(baseToken);
-                ObjectDef otherResToken = resTokenFromBase(otherBaseToken, resElement);
-                Pair<String, String> otherloc = getLocalizedName(otherBaseToken, className);
-                addLocalizedName(otherResToken, otherloc);
-                
-                baseTokensToTokens.put(otherBaseToken, otherResToken);
-            }
-            
         }
         
-        for(Resource baseToken : baseTokens.subList(1, baseTokens.size())){
+        for (Resource baseToken : baseTokens.subList(1, baseTokens.size())) {
             int tokenIndex = baseTokens.indexOf(baseToken);
             ObjectDef resToken = baseTokensToTokens.get(baseToken);
             ObjectDef previousResToken = baseTokensToTokens.get(baseTokens.get(tokenIndex - 1));
@@ -113,26 +102,94 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         situationDomain.addMerge(domainModel);
         situationDomain.validateAndThrow();
         
+        solveSituation(
+            situationDomain,
+            decisionTreeMap,
+            selectedTokens,
+            isLastSelectionVariable,
+            baseTokensToElements,
+            baseTokensToTokens
+        );
+        
+        
+        situationDomain.validateAndThrow();
+        debugDumpLoqi(situationDomain, "out.loqi");
+        return parseResult;
+    }
+    
+    private static void createAndPutObjects(
+        Resource baseToken,
+        DomainModel domainModel,
+        DomainModel situationDomain,
+        ParsedDomain parseResult,
+        Map<Resource, ObjectDef> baseTokensToTokens,
+        Map<Resource, ObjectDef> baseTokensToElements,
+        Map<Resource, Resource> complexPairsMap
+    ) {
+        if (baseTokensToTokens.containsKey(baseToken))
+            return;
+        
+        ParsedClassName parsedClassName = className(baseToken, domainModel);
+        String className = parsedClassName.className;
+        if (!parsedClassName.isCorrect) {
+            parseResult.errorPos.add(getIndex(baseToken));
+        }
+        ObjectDef resElement = newObject(situationDomain, "element_" + baseToken.getLocalName(), className);
+        setEnumProperty(
+            resElement, "state",
+            "state", className.equals("operand") ? "evaluated" : "unevaluated"
+        );
+        if (domainModel.getClasses().get(className).isSubclassOf("operand")) {
+            boolean evaluationValue = getByProperty(baseToken, "has_value")
+                .map(res -> res.asLiteral().getBoolean())
+                .orElse(true);
+            setBoolProperty(resElement, "evaluatesTo", evaluationValue);
+        }
+        ObjectDef resToken = resTokenFromBase(baseToken, resElement);
+        
+        Pair<String, String> loc = getLocalizedName(baseToken, className);
+        addLocalizedName(resElement, loc);
+        addLocalizedName(resToken, loc);
+        
+        baseTokensToTokens.put(baseToken, resToken);
+        baseTokensToElements.put(baseToken, resElement);
+        
+        if (complexPairsMap.containsKey(baseToken)) {
+            Resource otherBaseToken = complexPairsMap.get(baseToken);
+            ObjectDef otherResToken = resTokenFromBase(otherBaseToken, resElement);
+            Pair<String, String> otherloc = getLocalizedName(otherBaseToken, className);
+            addLocalizedName(otherResToken, otherloc);
+            
+            baseTokensToTokens.put(otherBaseToken, otherResToken);
+        }
+    }
+    
+    private static void solveSituation(
+        DomainModel situationDomain,
+        Map<String, DecisionTree> decisionTreeMap,
+        List<Resource> selected,
+        boolean isLastSelectionVariable,
+        Map<Resource, ObjectDef> baseTokensToElements,
+        Map<Resource, ObjectDef> baseTokensToTokens
+    ) {
         ProgrammingLanguageExpressionsSolver solver = new ProgrammingLanguageExpressionsSolver();
         solver.solveTree(situationDomain, decisionTreeMap);
         solver.solveStrict(situationDomain, decisionTreeMap);
         
         
         for (Resource baseToken : selected) {
-            if(!includeLastSelection
-                && baseToken == selected.get(selected.size() - 1)
-                && baseTokensToElements.containsKey(baseToken)
-            ){
-                //в зависимости от контекста, последний выбранный объект делаем переменной, и не записываем факт его вычисления
-                newVariable(situationDomain, "X", baseTokensToElements.get(baseToken).getName());
-                newVariable(situationDomain, "X1", baseTokensToTokens.get(baseToken).getName());
+            //в зависимости от контекста, последний выбранный объект делаем переменной, и не записываем факт его вычисления
+            if (isLastSelectionVariable && baseToken == selected.get(selected.size() - 1)) {
+                if (baseTokensToElements.containsKey(baseToken)) {
+                    newVariable(situationDomain, "X", baseTokensToElements.get(baseToken).getName());
+                    newVariable(situationDomain, "X1", baseTokensToTokens.get(baseToken).getName());
+                }
                 continue;
             }
             
             ObjectDef operator = baseTokensToElements.get(baseToken);
             setEnumProperty(
-                operator,
-                "state",
+                operator, "state",
                 "state", "evaluated"
             );
             situationDomain.getObjects().stream()
@@ -143,21 +200,15 @@ public class ProgrammingLanguageExpressionDomainBuilder {
                 )
                 .forEach(operand -> {
                     setEnumProperty(
-                        operand,
-                        "state",
+                        operand, "state",
                         "state", "used"
                     );
                 });
         }
-        
-        
-        situationDomain.validateAndThrow();
-        debugDumpLoqi(situationDomain, "out.loqi");
-        return parseResult;
     }
     
     private static ObjectDef resTokenFromBase(Resource baseToken, ObjectDef resElement){
-        Domain situation = resElement.getDomain();
+        DomainModel situation = resElement.getDomainModel();
         ObjectDef token = newObject(situation, "token_" + baseToken.getLocalName(), "token");
         addRelationship(resElement, "has", token.getName());
         addMeta(token, "index", getIndex(baseToken));
@@ -207,12 +258,20 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         return baseToken.getProperty(baseToken.getModel().getProperty(BASE_TTL_PREF + "index")).getInt() - 1;
     }
     
-    private static void addLocalizedName(ObjectDef object, Pair<String, String> localization){
+    private static Optional<RDFNode> getByProperty(Resource baseRes, String propertyName) {
+        Property property = baseRes.getModel().getProperty(BASE_TTL_PREF + propertyName);
+        if (!baseRes.hasProperty(property)) {
+            return Optional.empty();
+        }
+        return Optional.of(baseRes.getProperty(property).getObject());
+    }
+    
+    private static void addLocalizedName(ObjectDef object, org.apache.commons.lang3.tuple.Pair<String, String> localization) {
         addMeta(object, "RU", "localizedName", localization.getLeft());
         addMeta(object, "EN", "localizedName", localization.getRight());
     }
     
-    private static Pair<String, String> getLocalizedName(Resource baseToken, String classname){
+    private static org.apache.commons.lang3.tuple.Pair<String, String> getLocalizedName(Resource baseToken, String classname) {
         String ru;
         String en;
         if(classname.equals("parenthesis")){
@@ -243,12 +302,12 @@ public class ProgrammingLanguageExpressionDomainBuilder {
         }
     }
     
-    private static ParsedClassName className(Resource baseToken, Domain domainModel){
+    private static ParsedClassName className(Resource baseToken, DomainModel domainModel) {
         String text = getText(baseToken);
         
         List<ClassDef> possibleClasses = domainModel.getClasses().stream()
-            .filter(classDef -> classDef.getMetadata().entrySet().stream()
-                .anyMatch(metadata -> metadata.getKey().getName().contains("text") && text.equals(metadata.getValue()))
+            .filter(classDef -> classDef.getMetadata().getEntries().stream()
+                .anyMatch(metadata -> metadata.getPropertyName().contains("text") && text.equals(metadata.getValue()))
             )
             .toList();
         if(possibleClasses.isEmpty()){
